@@ -17,3 +17,4 @@ private/
 CHECKLIST.local.md
 publication.local.json
 upload.local.json
+.DS_Store
