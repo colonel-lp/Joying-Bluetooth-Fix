@@ -56,7 +56,7 @@ trap finish 0
 trap 'exit 130' 1 2 15
 echo "Joying native Bluetooth receiving setup r1: $JBT_MODE"
 [ "$(id -u)" = 0 ] || fail "Use the root offline USB updater."
-for JBT_CMD in sha256sum cp mv rm mkdir chown chmod sync pidof getprop stat sed grep tr mount; do
+for JBT_CMD in sha256sum cp mv rm mkdir chown chmod sync pidof getprop id ls mount; do
     command -v "$JBT_CMD" >/dev/null 2>&1 || fail "Missing command: $JBT_CMD"
 done
 [ "$(getprop ro.product.device)" = sp9853i_1h10 ] || fail "Requires the tested sp9853i_1h10 device."
@@ -66,7 +66,21 @@ done
 JBT_CURRENT=$(hash_file "$JBT_TARGET") || fail "Cannot hash config."
 valid_hash "$JBT_CURRENT" || fail "Invalid config hash."
 echo "Current config SHA-256: $JBT_CURRENT"
-grep '^[[:space:]]*sys[.]fyt[.]systemobd[[:space:]]*=' "$JBT_TARGET" || echo "Native override: not set in config."
+# Parse config keys with shell built-ins; the offline environment lacks sed/stat.
+JBT_TAB=$(printf '\t')
+JBT_CR=$(printf '\r')
+native_key() {
+    JBT_KEY=${1%%=*}
+    while :; do case "$JBT_KEY" in ' '*|"$JBT_TAB"*) JBT_KEY=${JBT_KEY#?};; *) break;; esac; done
+    while :; do case "$JBT_KEY" in *' '|*"$JBT_TAB") JBT_KEY=${JBT_KEY%?};; *) break;; esac; done
+    [ "$JBT_KEY" = sys.fyt.systemobd ] && case "$1" in *=*) return 0;; esac
+    return 1
+}
+JBT_FOUND=0
+while IFS= read -r JBT_LINE || [ -n "$JBT_LINE" ]; do
+    if native_key "$JBT_LINE"; then printf '%s\n' "$JBT_LINE"; JBT_FOUND=1; fi
+done <"$JBT_TARGET"
+[ "$JBT_FOUND" = 1 ] || echo "Native override: not set in config."
 if [ "$JBT_MODE" = check ]; then JBT_RESULT=CHECK_COMPLETE; exit 0; fi
 if pidof system_server audioserver adbd >/dev/null 2>&1; then fail "Android is running; use the offline updater."; fi
 [ ! -L "$JBT_OEM" ] && [ ! -L "$JBT_OEM/app" ] || fail "Unexpected OEM symlink."
@@ -100,20 +114,56 @@ fi
 if [ "$JBT_HAS_RECEIPT" = 1 ] && [ "$JBT_CURRENT" = "$JBT_INSTALLED" ]; then
     JBT_RESULT=ALREADY_INSTALLED; exit 0
 fi
-JBT_METADATA=$(stat -c '%a %u %g' "$JBT_TARGET") || fail "Cannot preserve config metadata."
-IFS=' ' read -r JBT_PERM JBT_UID JBT_GID JBT_EXTRA <<JBT_METADATA_END
+# Numeric ownership comes from the supported ls, permissions from its mode field.
+JBT_METADATA=$(ls -ldn "$JBT_TARGET") || fail "Cannot read config metadata."
+IFS=' ' read -r JBT_ATTRIBUTES JBT_LINKS JBT_UID JBT_GID JBT_REST <<JBT_METADATA_END
 $JBT_METADATA
 JBT_METADATA_END
-[ -z "$JBT_EXTRA" ] || fail "Unexpected config metadata."
-case "$JBT_PERM" in ''|*[!0-7]*) fail "Unexpected config permissions.";; esac
+case "$JBT_ATTRIBUTES" in -?????????) ;; *) fail "Unexpected config mode.";; esac
 case "$JBT_UID:$JBT_GID" in *[!0-9:]*) fail "Unexpected config ownership.";; esac
 [ -n "$JBT_UID" ] && [ -n "$JBT_GID" ] || fail "Missing config ownership."
+JBT_CHARS=${JBT_ATTRIBUTES#?}
+JBT_BITS=0
+JBT_BIT=256
+JBT_POS=1
+while [ -n "$JBT_CHARS" ]; do
+    JBT_CHAR=${JBT_CHARS%"${JBT_CHARS#?}"}
+    JBT_CHARS=${JBT_CHARS#?}
+    case "$JBT_POS:$JBT_CHAR" in
+        1:r|4:r|7:r|2:w|5:w|8:w|3:x|6:x|9:x) JBT_BITS=$((JBT_BITS + JBT_BIT));;
+        3:s) JBT_BITS=$((JBT_BITS + 2048 + JBT_BIT));;
+        3:S) JBT_BITS=$((JBT_BITS + 2048));;
+        6:s) JBT_BITS=$((JBT_BITS + 1024 + JBT_BIT));;
+        6:S) JBT_BITS=$((JBT_BITS + 1024));;
+        9:t) JBT_BITS=$((JBT_BITS + 512 + JBT_BIT));;
+        9:T) JBT_BITS=$((JBT_BITS + 512));;
+        *:-) ;;
+        *) fail "Unsupported config permission field.";;
+    esac
+    JBT_BIT=$((JBT_BIT / 2))
+    JBT_POS=$((JBT_POS + 1))
+done
+JBT_PERM=$(printf '%o' "$JBT_BITS")
 writable
 JBT_STAGE_OWNED=1
-sed 's/^[[:space:]]*sys[.]fyt[.]systemobd[[:space:]]*=.*$/sys.fyt.systemobd=1/' "$JBT_TARGET" >"$JBT_STAGE" || fail "Cannot stage config."
-if ! grep -q '^[[:space:]]*sys[.]fyt[.]systemobd[[:space:]]*=' "$JBT_TARGET"; then
-    printf '\nsys.fyt.systemobd=1\n' >>"$JBT_STAGE" || fail "Cannot append native setting."
-fi
+# Keep unrelated bytes, CRLF and missing final newlines intact.
+{
+    while :; do
+        JBT_LINE=
+        IFS= read -r JBT_LINE
+        JBT_READ=$?
+        [ "$JBT_READ" = 0 ] || [ -n "$JBT_LINE" ] || break
+        if native_key "$JBT_LINE"; then
+            printf 'sys.fyt.systemobd=1'
+            case "$JBT_LINE" in *"$JBT_CR") printf '\r';; esac
+        else
+            printf '%s' "$JBT_LINE"
+        fi
+        [ "$JBT_READ" = 0 ] || break
+        printf '\n'
+    done
+    if [ "$JBT_FOUND" = 0 ]; then printf '\nsys.fyt.systemobd=1\n'; fi
+} <"$JBT_TARGET" >"$JBT_STAGE" || fail "Cannot stage config."
 permissions "$JBT_STAGE" || fail "Cannot preserve config metadata."
 JBT_NEW=$(hash_file "$JBT_STAGE") || fail "Cannot hash staged config."
 if [ "$JBT_NEW" = "$JBT_CURRENT" ]; then JBT_RESULT=ALREADY_CONFIGURED; exit 0; fi

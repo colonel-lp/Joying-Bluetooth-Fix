@@ -112,32 +112,44 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.config.read_bytes(), self.original)
 
 
-class UsbLayoutTests(unittest.TestCase):
-    def test_each_copied_layout_runs_and_logs_success_and_missing_runner(self):
-        for folder, mode in [('Check', 'check'), ('install', 'install'), ('restore', 'restore')]:
-            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
-                usb = Path(tmp)
+    def test_usb_line_processor_layouts_and_logs(self):
+        for folder, mode, result in [('Check', 'check', 'CHECK_COMPLETE'), ('install', 'install', 'INSTALLED'), ('restore', 'restore', 'RESTORED')]:
+            with self.subTest(mode=mode):
                 layout = SOURCE.parents[2] / folder
+                self.assertFalse((layout / 'lsec.sh').exists())
+                launcher = (layout / 'lsec_updatesh/lsec.sh').read_text()
+                expected = '#!/system/bin/sh\n/system/bin/sh /storage/sdcard1/joying-bluetooth/run.sh ' + mode + '\n'
+                self.assertEqual(launcher, expected)
                 self.assertEqual((layout / 'joying-bluetooth/run.sh').read_bytes(), SOURCE.read_bytes())
-                launcher = (layout / 'lsec.sh').read_text().replace('/storage/sdcard1', str(usb)).replace('/system/bin/sh', '/bin/sh')
-                entry = usb / 'lsec.sh'
-                entry.write_text(launcher)
-                log = usb / f'joying-bluetooth-{mode}.log'
-                result = subprocess.run(['/bin/sh', str(entry)], capture_output=True)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('missing /joying-bluetooth/run.sh', log.read_text())
-                (usb / 'joying-bluetooth').mkdir()
-                runner = usb / 'joying-bluetooth/run.sh'
-                runner.write_text('echo "runner received: $1"; exit 0\n')
-                result = subprocess.run(['/bin/sh', str(entry)], capture_output=True)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(f'runner received: {mode}', log.read_text())
-                self.assertIn(f'USB launcher finished: {mode}; exit 0', log.read_text())
-                self.assertIn('missing /joying-bluetooth/run.sh', log.read_text())
-                runner.write_text('echo "runner failure"; exit 7\n')
-                result = subprocess.run(['/bin/sh', str(entry)], capture_output=True)
-                self.assertEqual(result.returncode, 7)
-                self.assertIn(f'USB launcher finished: {mode}; exit 7', log.read_text())
+                # Simulate the updater executing only the one executable line.
+                line = launcher.splitlines()[1].replace('/system/bin/sh', '/bin/sh').replace('/storage/sdcard1/joying-bluetooth/run.sh', str(self.script))
+                r = subprocess.run(['/bin/sh', '-c', line], env=self.env, capture_output=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                log = self.usb / f'joying-bluetooth-{mode}.log'
+                self.assertIn('RESULT: ' + result + '; exit 0', log.read_text())
+                before = log.read_bytes()
+                subprocess.run(['/bin/sh', '-c', line], env=self.env, check=True)
+                self.assertTrue(log.read_bytes().startswith(before))
+
+    def test_supported_commands_and_metadata_without_final_newline(self):
+        for name in ['stat', 'sed', 'grep', 'tr']:
+            self.write_command(name, 'echo "unsupported command" >&2; exit 99')
+        for perm in [0o600, 0o644, 0o640, 0o4750, 0o2640, 0o1644]:
+            with self.subTest(perm=oct(perm)):
+                self.original = b'# keep exact\r\n  sys.fyt.systemobd \t=0\r\nlast=value'
+                self.config.write_bytes(self.original)
+                self.config.chmod(perm)
+                # Each case uses a fresh USB receipt/backup.
+                import shutil
+                shutil.rmtree(self.usb / 'joying-bluetooth-backup-r1', ignore_errors=True)
+                code, log = self.run_mode('install')
+                self.assertEqual(code, 0, log)
+                self.assertEqual(self.config.read_bytes(), b'# keep exact\r\nsys.fyt.systemobd=1\r\nlast=value')
+                self.assertEqual(self.config.stat().st_mode & 0o7777, perm)
+                code, log = self.run_mode('restore')
+                self.assertEqual(code, 0, log)
+                self.assertEqual(self.config.read_bytes(), self.original)
+                self.assertEqual(self.config.stat().st_mode & 0o7777, perm)
 
 
 if __name__ == '__main__':

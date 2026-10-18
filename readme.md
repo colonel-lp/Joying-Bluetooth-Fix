@@ -33,6 +33,6 @@ If connected but silent, pause the Mac player, select the Mac speakers as output
 
 `sys.fyt.systemobd=1` is volatile. The [USB procedure](scripts/persistence/readme.md) retains it through `/oem/app/config.txt`, with a verified original backup and guarded restore. It requires the existing compatible offline `lsec6521update` tool; no updater is supplied.
 
-Tested device: `sp9853i_1h10`, Android API 27, Joying firmware dated 2020-04-07. Receiving playback and manual recovery are confirmed. The persistence scripts passed eight host checks, but their first head-unit installation/reboot acceptance remains pending. Shortcut APK structure/signature checks passed; installation of the new icon on the unit has not yet been reported. The Java/Gradle project has not been assembled in the preparation environment.
+Tested device: `sp9853i_1h10`, Android API 27, Joying firmware dated 2020-04-07. Receiving playback and manual recovery are confirmed. The persistence scripts passed nine host checks, but their first head-unit installation/reboot acceptance remains pending. Shortcut APK structure/signature checks passed; installation of the new icon on the unit has not yet been reported. The Java/Gradle project has not been assembled in the preparation environment.
 
 Headphone output also produced audio and media-button control, but the normal Joying volume buttons did not control its level. That work is deferred. Automatic source switching/reconnection is not implemented.
