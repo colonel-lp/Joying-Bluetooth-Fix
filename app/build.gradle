@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application' version '8.13.2'
+}
+
+android {
+    namespace 'com.eqdsp.bluetoothsettings'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.eqdsp.bluetoothsettings'
+        minSdk 21
+        targetSdk 27
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        // This shortcut is sideloaded on an Android 8.1 head unit.
+        disable 'ExpiredTargetSdkVersion'
+    }
+}
+
+android.applicationVariants.all { variant ->
+    variant.outputs.all {
+        outputFileName = "BluetoothSettings-${variant.name}.apk"
+    }
+}
