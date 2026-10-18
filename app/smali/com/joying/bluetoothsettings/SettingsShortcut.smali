@@ -1,4 +1,4 @@
-.class public Lcom/eqdsp/bluetoothsettings/SettingsShortcut;
+.class public Lcom/joying/bluetoothsettings/SettingsShortcut;
 .super Landroid/app/Activity;
 
 .method public constructor <init>()V

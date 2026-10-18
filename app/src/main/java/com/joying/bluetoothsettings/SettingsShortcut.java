@@ -1,4 +1,4 @@
-package com.eqdsp.bluetoothsettings;
+package com.joying.bluetoothsettings;
 
 import android.app.Activity;
 import android.content.Intent;

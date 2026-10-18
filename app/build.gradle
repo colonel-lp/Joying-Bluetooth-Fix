@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.eqdsp.bluetoothsettings'
+    namespace 'com.joying.bluetoothsettings'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.eqdsp.bluetoothsettings'
+        applicationId 'com.joying.bluetoothsettings'
         minSdk 21
         targetSdk 27
         versionCode 1

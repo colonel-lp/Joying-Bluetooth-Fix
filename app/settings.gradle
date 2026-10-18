@@ -12,4 +12,9 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+// Keep the IDE and command-line build on the documented AGP toolchain.
+if (org.gradle.util.GradleVersion.current() != org.gradle.util.GradleVersion.version('8.13')) {
+    throw new GradleException('This project uses Gradle 8.13 with AGP 8.13.2. In Android Studio, select the gradle-wrapper.properties distribution and JDK 17, then sync again. For a terminal build, use an installed Gradle 8.13.')
+}
+
 rootProject.name = 'JoyingBluetoothSettings'
