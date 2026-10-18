@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-SOURCE = Path(__file__).parent / 'run.sh'
+SOURCE = Path(__file__).parent / 'install/joying-bluetooth/run.sh'
 
 
 class InstallerTests(unittest.TestCase):
@@ -110,6 +110,34 @@ class InstallerTests(unittest.TestCase):
         self.write_command('pidof', 'echo 123; exit 0')
         self.assertNotEqual(self.run_mode('install')[0], 0)
         self.assertEqual(self.config.read_bytes(), self.original)
+
+
+class UsbLayoutTests(unittest.TestCase):
+    def test_each_copied_layout_runs_and_logs_success_and_missing_runner(self):
+        for folder, mode in [('Check', 'check'), ('install', 'install'), ('restore', 'restore')]:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                usb = Path(tmp)
+                layout = SOURCE.parents[2] / folder
+                self.assertEqual((layout / 'joying-bluetooth/run.sh').read_bytes(), SOURCE.read_bytes())
+                launcher = (layout / 'lsec.sh').read_text().replace('/storage/sdcard1', str(usb)).replace('/system/bin/sh', '/bin/sh')
+                entry = usb / 'lsec.sh'
+                entry.write_text(launcher)
+                log = usb / f'joying-bluetooth-{mode}.log'
+                result = subprocess.run(['/bin/sh', str(entry)], capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('missing /joying-bluetooth/run.sh', log.read_text())
+                (usb / 'joying-bluetooth').mkdir()
+                runner = usb / 'joying-bluetooth/run.sh'
+                runner.write_text('echo "runner received: $1"; exit 0\n')
+                result = subprocess.run(['/bin/sh', str(entry)], capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(f'runner received: {mode}', log.read_text())
+                self.assertIn(f'USB launcher finished: {mode}; exit 0', log.read_text())
+                self.assertIn('missing /joying-bluetooth/run.sh', log.read_text())
+                runner.write_text('echo "runner failure"; exit 7\n')
+                result = subprocess.run(['/bin/sh', str(entry)], capture_output=True)
+                self.assertEqual(result.returncode, 7)
+                self.assertIn(f'USB launcher finished: {mode}; exit 7', log.read_text())
 
 
 if __name__ == '__main__':

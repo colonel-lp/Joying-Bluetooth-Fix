@@ -15,7 +15,7 @@ JBT_STAGE_OWNED=0
 JBT_REMOUNTED=0
 JBT_RESULT=FAILED
 [ ! -L "$JBT_USB/joying-bluetooth-$JBT_MODE.log" ] || exit 1
-exec >"$JBT_USB/joying-bluetooth-$JBT_MODE.log" 2>&1 || exit 1
+exec >>"$JBT_USB/joying-bluetooth-$JBT_MODE.log" 2>&1 || exit 1
 fail() { echo "ERROR: $*"; exit 1; }
 hash_file() { JBT_H=$(sha256sum "$1") || return 1; echo "${JBT_H%% *}"; }
 valid_hash() { [ "${#1}" = 64 ] && case "$1" in *[!0-9a-f]*) return 1;; *) return 0;; esac; }
