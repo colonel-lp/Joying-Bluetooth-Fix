@@ -16,8 +16,8 @@ Enable native Android Bluetooth on Joying/FYT SC9853i head units and provide com
 
 - Joying's original Bluetooth app controls a vendor Bluetooth stack/module.
 - Native discovery, RFCOMM data-connection handling and A2DP audio code remain in the firmware. FYT bypasses substantial existing Bluetooth code rather than removing it.
-- `bluetooth.mock_stack=1` selects **`bluetooth_test.default.so`**. Despite its name, this library contains substantial discovery, connection, audio-profile and radio-initialization code; it is not an empty mock. Native playback works without changing this property.
-- With a nonzero `sys.fyt.bluetooth_type` and `sys.fyt.systemobd` unset/false, FYT takes its external Bluetooth path: it skips native radio enablement and native profile startup. Its startup handler sends completion message **500** instead of the expected **3**, leaving the original enable sequence stuck at **`BLE_TURNING_ON`**.
+- `bluetooth.mock_stack=1` selects **`bluetooth_test.default.so`**. Despite its name, this library contains substantial discovery, connection, audio-profile and radio-initialization code; it is not an empty library. Native playback works without changing this property.
+- With a non zero `sys.fyt.bluetooth_type` and `sys.fyt.systemobd` unset/false, FYT takes its external Bluetooth path: it skips native radio enablement and native profile startup. Its startup handler sends completion message **500** instead of the expected **3**, leaving the original enable sequence stuck at **`BLE_TURNING_ON`**.
 - In that external path, the paired-device list can come from **`/data/blink/bt_conf.ini`**. A listed phone therefore does not establish that Android's native radio started or connected.
 - **`sys.fyt.systemobd=1`** selects the native startup path without changing the Bluetooth module type. The Bluetooth process must reload the setting; reboot persistence is described below.
 - Native received audio uses Android alarm stream **4**. Joying's sound service selects Bluetooth Music source **3** and sets that stream to **7/7**; normal speaker volume remains under Joying control.
@@ -62,6 +62,6 @@ Full operation requires `enabled: true` and `state: ON`. If connected but silent
 
 ## App status
 
-**Bluetooth Controls v1.3** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, source on/off, adapter on/off, Settings, status and close. Source OFF restores the previous source, or Android when no previous source is known. Close releases a source acquired by the app and leaves the adapter enabled.
+**Bluetooth Controls v1.3** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio OFF restores the previous source, or Android when no previous source is known. Close releases a source acquired by the app and leaves the adapter enabled.
 
 Receiving playback and the main floating controls are working on the target unit. The latest source adds direct enablement, transition handling and access to the native Stop handler; these changes need device confirmation. Native-mode setup remains a prerequisite. The app does not write system properties, restart Bluetooth, switch audio roles or select a source automatically.
