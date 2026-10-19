@@ -28,12 +28,12 @@ The bar uses a foreground service and stops on explicit close; the system can st
 
 Open the repository's **`app/`** directory. The root project is the application module; there is no nested `app/app/` directory. Use:
 
-- Gradle **8.13**, selected from `gradle/wrapper/gradle-wrapper.properties`.
+- Gradle **9.3.1**, selected from `gradle/wrapper/gradle-wrapper.properties`.
 - Android Gradle Plugin **8.13.2**.
-- Gradle JDK **17** and Android SDK Platform **35**.
+- Gradle JVM **25** (your existing Java/Gradle Java home) and Android SDK Platform **35**.
 - Minimum SDK **21**, target SDK **27**; intended device is Android 8.1/API 27.
 
-Sync, then build the debug APK. With an installed Gradle 8.13:
+Sync, then build the debug APK. With an installed Gradle 9.3.1:
 
 ```sh
 cd app
@@ -41,7 +41,11 @@ gradle assembleDebug
 adb install -r build/outputs/apk/debug/BluetoothControls-debug.apk
 ```
 
-The distribution properties are included; command-line wrapper launchers/JAR are not. Use Android Studio or an installed Gradle 8.13 for terminal builds. Keep local SDK paths in ignored `local.properties`. Existing installs with the same package and signing key can be updated in place. A differently signed installation must first be uninstalled, which also clears saved bar position/return source; leave Bluetooth source before doing that.
+Use Android Studio's **gradle-wrapper.properties** distribution and keep **Gradle JDK / Gradle Java home 25** selected. Gradle 9.3.1 supports Java 25 and its compatibility table includes AGP 8.13, so AGP remains 8.13.2. The settings guard accepts Gradle 9.1–9.5 and rejects 9.6+, which removed an internal API used by AGP 8.x. Java language/class targets remain 8 and Android SDK targets remain unchanged; the JVM running Gradle is a separate setting.
+
+References: [Gradle 9.3.1 compatibility](https://docs.gradle.org/9.3.1/userguide/compatibility.html), [official distribution checksums](https://gradle.org/release-checksums/), and [AGP 8.x/Gradle 9.6 incompatibility](https://docs.gradle.org/current/userguide/upgrading_version_9.html#agp_8x_incompatible).
+
+The distribution properties are included; command-line wrapper launchers/JAR are not. Use Android Studio or an installed Gradle 9.3.1 for terminal builds. Keep local SDK paths in ignored `local.properties`. Existing installs with the same package and signing key can be updated in place. A differently signed installation must first be uninstalled, which also clears saved bar position/return source; leave Bluetooth source before doing that.
 
 No APKs, signing keys, vendor libraries or binary payloads are published. There are no external application dependencies.
 
@@ -54,7 +58,7 @@ python3 app/tests/check_flows.py
 
 Java 17 with `jdk.compiler` is required. The first command checks 14 source-routing scenarios, manifest permissions/lifecycle declarations, and optionally compiles all production Java against the SDK (using a generated R stand-in). The second checks 12 launcher/native-session scenarios with host Android stand-ins, including overlay permission denial, canceled/recreated enable prompts, unsupported actions and stale connection callbacks. These checks do not emulate a head unit, prove Binder/audio access, or assemble an APK.
 
-Completed here: Android SDK Java compilation and 26 focused host scenarios. Full Gradle/resource packaging and on-unit visual/audio acceptance remain pending; the owner builds the APK.
+Completed here: Android SDK Java compilation and 26 focused host scenarios. The later Java 25 build-configuration update was checked against official Gradle compatibility guidance and its published distribution checksum; Java 25/Gradle execution was not run here because the workspace only has Java 17. Full Gradle/resource packaging and on-unit visual/audio acceptance remain pending; the owner builds the APK.
 
 On-unit acceptance: grant/deny overlay permission; drag and reopen; connect the Mac; Source ON then OFF; each supported media button; BT OFF then ON including BLE-only recovery; × while source acquisition is pending; close after another app selects a different source. Confirm that other apps' media controls are unaffected.
 
