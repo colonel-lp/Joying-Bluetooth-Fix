@@ -26,6 +26,10 @@ def main():
     activity = manifest.find('application/activity')
     assert activity.get(ns + 'noHistory') != 'true'
     assert manifest.find('application/service').get(ns + 'exported') == 'false'
+    settings = manifest.find("application/activity[@{"+ns[1:-1]+"}name='.BtSettingsActivity']")
+    assert settings is not None and settings.get(ns + 'exported') == 'false'
+    assert settings.get(ns + 'taskAffinity') == 'com.joying.bluetoothsettings.btsettings'
+    assert settings.get(ns + 'noHistory') != 'true'
     with tempfile.TemporaryDirectory(prefix='joying-bt-check-') as temp:
         root = Path(temp)
         classes = root / 'checks'

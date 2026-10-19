@@ -65,6 +65,14 @@ The ongoing notification shows confirmed BT/Audio states, transition or unknown 
 
 A hidden service stops when Bluetooth and Audio are confirmed off with no pending transitions. Explicit shutdown pauses the sender, abandons focus, restores the source and then disables Bluetooth, waiting for in-flight requests and readback. Rejected or unconfirmed shutdown keeps the notification and retry action. Hiding does not restart earlier players or release an active audio route. Boot launch is not included.
 
+## Settings task and sender name
+
+BT Settings starts a private translucent root activity with a separate task affinity. That root launches native Bluetooth settings for a result, without a new-task flag on the native child. Pressing the button again finishes/removes the root task; Back/result and root destruction clear the open indicator. The button stays highlighted while closing is pending. A non-root fallback finishes only the child it launched and itself. Launch failure/timeout allows retry; recreation does not launch a duplicate child.
+
+This tracks only the native settings task opened by the app. It does not inspect or close unrelated Android settings tasks and needs no additional permission. The Android 8.1 reference manifest uses a standard Bluetooth settings activity; firmware task behavior still requires device confirmation.
+
+The title bar reads its version from installed package metadata. Sender names come from `BluetoothProfile` receiving profile **11** (`A2DP_SINK` on Android 8.1), not the paired-device list or HID connections. The supplied firmware returns its single current connected sender from that profile. Names refresh on profile connection, name and adapter events; disconnect/ambiguity clears the label. Unsupported profile access leaves the name absent. The native media session continues to provide playback state and track title separately.
+
 ## Privilege limits
 
 - Checking Bluetooth state is available to the app. Reading native-mode properties can be attempted with suitable error handling.
@@ -76,6 +84,7 @@ A hidden service stops when Bluetooth and Audio are confirmed off with no pendin
 ## References
 
 - [Android audio focus](https://developer.android.com/media/optimize/audio-focus)
+- [Activity task lifecycle](https://developer.android.com/reference/android/app/Activity#finishAndRemoveTask())
 - [BluetoothAdapter](https://developer.android.com/reference/android/bluetooth/BluetoothAdapter)
 - [MediaBrowser](https://developer.android.com/reference/android/media/browse/MediaBrowser)
 - [MediaController](https://developer.android.com/reference/android/media/session/MediaController)

@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
@@ -42,12 +43,14 @@ public class FloatingBarService extends Service {
     private WindowManager.LayoutParams layout;
     private LinearLayout bar;
     private TextView status;
-    private Button previous, play, stop, next, sourceButton, bluetoothButton;
+    private Button previous, play, stop, next, sourceButton, bluetoothButton, settingsButton;
+    private final SettingsWindow.Listener settingsListener = this::render;
     private SharedPreferences preferences;
     private BluetoothAdapter adapter;
     private JoyingSource wire;
     private SourceController source;
     private NativePlayback playback;
+    private ReceiverDevice receiverDevice;
     private AudioFocusControl audioFocus;
     private AudioSession audioSession;
     private AdapterController adapterControl;
@@ -126,6 +129,9 @@ public class FloatingBarService extends Service {
             }
         });
         try {
+            SettingsWindow.INSTANCE.add(settingsListener);
+            receiverDevice = new ReceiverDevice(this, adapter, this::render);
+            receiverDevice.start();
             registerReceiver(receiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
             receiverRegistered = true;
             wire.connect();
@@ -220,12 +226,19 @@ public class FloatingBarService extends Service {
         GradientDrawable background = new GradientDrawable();
         background.setColor(0xF2222933); background.setCornerRadius(dp(9));
         background.setStroke(dp(1), 0xFF7C899B); bar.setBackground(background);
+        LinearLayout title = new LinearLayout(this);
+        bar.addView(title, new LinearLayout.LayoutParams(-1, dp(27)));
         status = new TextView(this);
         status.setTextColor(Color.WHITE); status.setTextSize(12);
         status.setSingleLine(true); status.setEllipsize(TextUtils.TruncateAt.END);
         status.setGravity(Gravity.CENTER_VERTICAL); status.setPadding(dp(7), 0, dp(7), 0);
         status.setContentDescription("Drag here to move Bluetooth controls. Long press to reconnect services.");
-        bar.addView(status, new LinearLayout.LayoutParams(-1, dp(27)));
+        title.addView(status, new LinearLayout.LayoutParams(0, -1, 1f));
+        TextView version = new TextView(this);
+        version.setText(versionLabel()); version.setTextSize(12); version.setTextColor(0xFFBAC6D6);
+        version.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        version.setPadding(dp(7), 0, dp(7), 0);
+        title.addView(version, new LinearLayout.LayoutParams(-2, -1));
         LinearLayout row = new LinearLayout(this);
         bar.addView(row, new LinearLayout.LayoutParams(-1, dp(42)));
         previous = button(row, "|◀", 1, () -> playback.send(PlaybackState.ACTION_SKIP_TO_PREVIOUS));
@@ -234,7 +247,8 @@ public class FloatingBarService extends Service {
         next = button(row, "▶|", 1, () -> playback.send(PlaybackState.ACTION_SKIP_TO_NEXT));
         sourceButton = button(row, "Audio ?", 1.9f, this::toggleAudio);
         bluetoothButton = button(row, "BT ?", 1.6f, this::toggleBluetooth);
-        button(row, "BT Settings", 2.1f, () -> openActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
+        settingsButton = button(row, "BT Settings", 2.1f, this::toggleSettings);
+        settingsButton.setContentDescription("Open or close the Bluetooth settings window opened by these controls");
         Button close = button(row, "×", .8f, this::closeBar);
         close.setContentDescription("Hide floating controls; exit when Bluetooth and Audio are off");
         close.setOnClickListener(v -> closeBar());
@@ -249,7 +263,7 @@ public class FloatingBarService extends Service {
         layout.gravity = Gravity.TOP | Gravity.LEFT;
         layout.x = preferences.getInt("x", dp(10)); layout.y = preferences.getInt("y", dp(50));
         clampPosition();
-        status.setOnTouchListener(new View.OnTouchListener() {
+        View.OnTouchListener drag = new View.OnTouchListener() {
             float startX, startY; int originalX, originalY; boolean dragged; long downAt;
             @Override public boolean onTouch(View view, MotionEvent event) {
                 if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
@@ -271,8 +285,14 @@ public class FloatingBarService extends Service {
                 }
                 return false;
             }
-        });
+        };
+        status.setOnTouchListener(drag);
+        version.setOnTouchListener(drag);
         attachBar();
+    }
+    private String versionLabel() {
+        try { return "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (PackageManager.NameNotFoundException unavailable) { return ""; }
     }
     private Button button(LinearLayout row, String label, float weight, Runnable action) {
         Button button = new Button(this);
@@ -342,6 +362,27 @@ public class FloatingBarService extends Service {
         else {
             if (source.active() && !audioSession.begin()) return;
             playback.send(PlaybackState.ACTION_PLAY);
+        }
+    }
+    private void toggleSettings() {
+        SettingsWindow window = SettingsWindow.INSTANCE;
+        if (window.busy()) return;
+        if (window.open()) {
+            try { window.requestClose(); }
+            catch (RuntimeException failure) { error("Bluetooth settings could not close"); }
+            return;
+        }
+        final long token = window.beginOpen();
+        if (token == 0) return;
+        try {
+            startActivity(new Intent(this, BtSettingsActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            main.postDelayed(() -> {
+                if (window.expire(token)) error("Bluetooth settings did not open; try again");
+            }, 5000);
+        } catch (RuntimeException failure) {
+            window.launchFailed();
+            error("Bluetooth settings unavailable");
         }
     }
     private void openActivity(Intent intent) {
@@ -414,12 +455,16 @@ public class FloatingBarService extends Service {
         sourceButton.setTextColor(source.active() ? 0xFF87E5B0 : Color.WHITE);
         sourceButton.setEnabled(!closing && !changing && !source.busy() && source.current() >= 0 && (on || source.active()));
         sourceButton.setAlpha(sourceButton.isEnabled() ? 1f : .4f);
+        settingsButton.setTextColor(SettingsWindow.INSTANCE.open() ? 0xFF87E5B0 : Color.WHITE);
+        settingsButton.setEnabled(!closing && !SettingsWindow.INSTANCE.busy());
+        settingsButton.setAlpha(settingsButton.isEnabled() ? 1f : .4f);
         play.setText(playback.playing() ? "Ⅱ" : "▶");
         enable(previous, PlaybackState.ACTION_SKIP_TO_PREVIOUS, on);
         enable(play, playback.playing() ? PlaybackState.ACTION_PAUSE : PlaybackState.ACTION_PLAY, on);
         enable(stop, PlaybackState.ACTION_STOP, on);
         enable(next, PlaybackState.ACTION_SKIP_TO_NEXT, on);
-        status.setText(closing ? "Turning Bluetooth and Audio off…" : "⋮⋮  Bluetooth " + bt + " · " + playback.summary());
+        status.setText(closing ? "Turning Bluetooth and Audio off…" : "⋮⋮  Bluetooth " + bt + (receiverDevice == null || receiverDevice.name().isEmpty()
+                ? "" : " · " + receiverDevice.name()) + " · " + playback.summary());
     }
     private void enable(Button button, long action, boolean on) {
         button.setEnabled(!closing && on && playback.supports(action));
@@ -432,9 +477,12 @@ public class FloatingBarService extends Service {
     @Override public void onDestroy() {
         destroyed = true;
         main.removeCallbacksAndMessages(null);
+        SettingsWindow.INSTANCE.remove(settingsListener);
+        SettingsWindow.INSTANCE.launchFailed();
         if (audioSession != null) audioSession.close();
         if (adapterControl != null) adapterControl.cancel();
         if (receiverRegistered) unregisterReceiver(receiver);
+        if (receiverDevice != null) receiverDevice.close();
         if (playback != null) playback.close();
         if (wire != null) wire.close();
         if (attached && windows != null) { try { windows.removeViewImmediate(bar); } catch (RuntimeException ignored) {} }

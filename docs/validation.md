@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.8 / code 9 — 19 October 2026
+
+- Production Java compiles against SDK 35 with Java 8 target/generated R. Host checks pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 source/focus integration, 11 focus-API, 15 launcher/native-playback, 25 foreground-service, 11 settings-window and 10 receiver-name scenarios. No APK assembly or device run.
+- New checks cover owned-task launch/close/result/recreation, stale callbacks, duplicate taps, failed launch/close, separate version metadata, toggle highlighting, receiver-profile selection, rename, ambiguous/missing names, disconnect/rebind and cleanup. Manifest checks retain unchanged permissions and verify the private separate settings task.
+- Device acceptance: open/close native settings repeatedly from the bar; verify return to the prior screen, nested device settings, Back, rotation/recreation and button highlighting. Confirm unrelated Settings tasks are preserved. Verify the actual sender name, rename/disconnect/reconnect/radio cycling and a connected keyboard/mouse. Check v1.8 at the title bar right, dragging from either title area and long titles. Retain notification/audio acceptance below.
+
 ## Bluetooth Controls 1.7 / code 8 — 19 October 2026
 
 - Production Java compiles against SDK 35 with Java 8 target/generated R. Host checks pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 source/focus integration, 11 focus-API, 15 launcher/native-playback and 22 foreground-service scenarios. No APK assembly or device run.
@@ -39,6 +45,8 @@ python3 app/tests/run_checks.py --android-jar /path/to/platforms/android-35/andr
 python3 app/tests/check_audio_focus.py
 python3 app/tests/check_flows.py
 python3 app/tests/check_service.py
+python3 app/tests/check_settings.py
+python3 app/tests/check_receiver.py
 python3 scripts/persistence/test_installer.py
 ```
 
