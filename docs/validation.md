@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.4 / code 5 — 19 October 2026
+
+- Production Java compiles against SDK 35 with Java 8 target/generated R. Existing 14 source-routing, 13 adapter-state and 12 launcher/native-playback scenarios pass; 7 new overlay-presence checks pass. The controller's 11 link scenarios use host Binder stand-ins. No Gradle/Java 25 execution, APK or actual window/IPC/radio test.
+- The exported link accepts only the EQ & DSP package UID, subscribes without opening the bar, starts/reuses its foreground overlay service without Activity navigation, and reports actual attachment/removal. The overlay service remains private. See [protocol](eq-dsp-link.md).
+- Unit acceptance: direct launch from EQ & DSP, existing-open query, repeated tap, ×/notification close, service/process stop, client rotation/rebind and stale replies. Confirm underlying screen stays visible; radio/audio controls and previous-source ownership/restoration remain unchanged. Check missing overlay grant recovery. Retain previous adapter/Stop/device acceptance below.
+
 ## Source checks
 
 From the repository root, with Java 17 or newer and `jdk.compiler`:

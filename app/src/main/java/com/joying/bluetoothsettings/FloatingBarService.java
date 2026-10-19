@@ -206,6 +206,7 @@ public class FloatingBarService extends Service {
             }
         });
         windows.addView(bar, layout);
+        OverlayPresence.INSTANCE.set(true);
     }
     private Button button(LinearLayout row, String label, float weight, Runnable action) {
         Button button = new Button(this);
@@ -307,6 +308,7 @@ public class FloatingBarService extends Service {
         if (playback != null) playback.close();
         if (wire != null) wire.close();
         if (bar != null && windows != null) { try { windows.removeView(bar); } catch (RuntimeException ignored) {} }
+        OverlayPresence.INSTANCE.set(false);
         stopForeground(true);
         super.onDestroy();
     }

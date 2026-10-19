@@ -31,9 +31,12 @@ def main():
         classes = root / 'checks'
         classes.mkdir()
         compile_java([JAVA / 'SourceController.java', JAVA / 'AdapterController.java',
-                      APP / 'tests/SourceControllerChecks.java', APP / 'tests/AdapterControllerChecks.java'], classes)
+                      APP / 'tests/SourceControllerChecks.java', APP / 'tests/AdapterControllerChecks.java',
+                      JAVA / 'OverlayPresence.java', APP / 'tests/OverlayPresenceChecks.java'], classes)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.SourceControllerChecks'], check=True)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.AdapterControllerChecks'], check=True)
+        subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.OverlayPresenceChecks'], check=True)
+        assert manifest.find("application/service[@{"+ns[1:-1]+"}name='.ControlLinkService']") is not None
         if args.android_jar:
             generated = root / 'R.java'
             generated.write_text('package com.joying.bluetoothsettings; public final class R {'

@@ -62,6 +62,8 @@ Full operation requires `enabled: true` and `state: ON`. If connected but silent
 
 ## App status
 
-**Bluetooth Controls v1.3** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio OFF restores the previous source, or Android when no previous source is known. Close releases a source acquired by the app and leaves the adapter enabled.
+**Bluetooth Controls v1.4** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio OFF restores the previous source, or Android when no previous source is known. Close releases a source acquired by the app and leaves the adapter enabled.
 
 Receiving playback and the main floating controls are working on the target unit. The latest source adds direct enablement, transition handling and access to the native Stop handler; these changes need device confirmation. Native-mode setup remains a prerequisite. The app does not write system properties, restart Bluetooth, switch audio roles or select a source automatically.
+
+EQ & DSP integration: [overlay launch and status link](docs/eq-dsp-link.md).
