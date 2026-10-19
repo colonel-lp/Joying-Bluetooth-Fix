@@ -10,8 +10,8 @@ android {
         applicationId 'com.joying.bluetoothsettings'
         minSdk 21
         targetSdk 27
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
     }
 
     buildTypes {
@@ -26,13 +26,13 @@ android {
     }
 
     lint {
-        // This shortcut is sideloaded on an Android 8.1 head unit.
+        // This controller is sideloaded on an Android 8.1 head unit.
         disable 'ExpiredTargetSdkVersion'
     }
 }
 
 android.applicationVariants.all { variant ->
     variant.outputs.all {
-        outputFileName = "BluetoothSettings-${variant.name}.apk"
+        outputFileName = "BluetoothControls-${variant.name}.apk"
     }
 }

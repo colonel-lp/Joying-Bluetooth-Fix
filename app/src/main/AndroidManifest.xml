@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.BLUETOOTH" />
-    <application android:label="Bluetooth Settings" android:icon="@drawable/bluetooth_icon"
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <application android:label="Bluetooth Controls" android:icon="@drawable/bluetooth_icon"
         android:allowBackup="false" android:supportsRtl="true">
         <activity android:name=".SettingsShortcut" android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
@@ -11,5 +14,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service android:name=".FloatingBarService" android:exported="false" />
     </application>
 </manifest>

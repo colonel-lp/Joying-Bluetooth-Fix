@@ -1,6 +1,6 @@
 # Source, playback controls and startup investigation
 
-19 October 2026. Scope: findings only; no app, Bluetooth package or DSP service changes. Applies to the supplied Joying SC9853i Android 8.1 firmware. See [confirmed receiving procedure](discovery-and-reproduction.md).
+19 October 2026. Initial investigation followed by explicitly authorized [v1.2 floating-control source](../app/readme.md). The app now implements source selection and native playback access; real unit acceptance remains pending. No Bluetooth package or DSP service patch was made. Applies to the supplied Joying SC9853i Android 8.1 firmware. See [confirmed receiving procedure](discovery-and-reproduction.md).
 
 ## Source selection and level 7
 
@@ -57,7 +57,7 @@ The same device capture confirms an active **A2dpMediaBrowserService** session o
 | Check full Bluetooth enablement/state | Public adapter APIs; current app declares BLUETOOTH. |
 | Recover through Android enable confirmation | Already confirmed manually; v1.1 implements the flow, awaiting app acceptance. |
 | Read `sys.fyt.systemobd` and role flag | Can attempt `getprop`; verify app-context access and handle an unreadable value explicitly. |
-| Request ordinary adapter disable/enable | Android 8.1 allows this with BLUETOOTH_ADMIN; current app does not declare it. The vendor toggle fault still needs acceptance testing. |
+| Request ordinary adapter disable/enable | Android 8.1 allows this with BLUETOOTH_ADMIN; v1.2 declares it for shutdown and uses the confirmed prompt for enablement. The vendor toggle fault still needs acceptance testing. |
 | Set `sys.fyt.systemobd` / role flag | Property-service/SELinux access is required. ADB-shell success does not establish app access. No verified existing app-accessible setter was found. |
 | Force-stop `com.android.bluetooth` | FORCE_STOP_PACKAGES is signature/privileged; an ordinary app cannot reproduce the ADB command merely by executing `am`. |
 
@@ -83,7 +83,7 @@ Completed: source 3, alarm volume 7/7 and the active native session are confirme
 ./adb shell media monitor A2dpMediaBrowserService
 ```
 
-At its interactive prompt, enter `pause`, then `play`, each followed by Return, and check the Mac player. Enter `q` to exit. This targets the session by tag, rather than sending a generic system media key. If monitoring reports an error, preserve the exact output; do not interpret a denied command as an AVRCP failure. A successful ADB test would establish the remote control path, but ordinary-app browser access still needs its own test.
+The owner's monitor attempt was rejected with **Missing permission to control media**. The trailing **No session found** is the command's generic follow-up after the exception, not evidence that the session disappeared. This did not test AVRCP. The app instead binds the exported browser and obtains its session token without global session enumeration; test play/pause/previous/next from the v1.2 bar after building it.
 
 The subsequent app test should cover source acquire/readback, each sender control, source release and returning to local playback; permission checks for property writes must run as the app, not as ADB shell.
 

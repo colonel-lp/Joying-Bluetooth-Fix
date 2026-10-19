@@ -17,4 +17,4 @@ if (org.gradle.util.GradleVersion.current() != org.gradle.util.GradleVersion.ver
     throw new GradleException('This project uses Gradle 8.13 with AGP 8.13.2. In Android Studio, select the gradle-wrapper.properties distribution and JDK 17, then sync again. For a terminal build, use an installed Gradle 8.13.')
 }
 
-rootProject.name = 'JoyingBluetoothSettings'
+rootProject.name = 'JoyingBluetoothControls'
