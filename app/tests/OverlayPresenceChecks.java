@@ -10,6 +10,10 @@ public final class OverlayPresenceChecks {
         state.set(true);check(a.size()==2&&b.size()==1,"Reopening reuses presence without duplicate events");
         state.remove(first);state.set(false);check(a.size()==2&&b.size()==2&&!b.get(1),"Close updates subscribed clients only");
         state.add(first);check(!a.get(2),"Reconnect queries the current closed state");
+        final int[] closes={0};state.attached(()->closes[0]++);
+        check(state.visible()&&closes[0]==0,"Attaching records an existing close path without invoking it");
+        check(state.requestClose()&&closes[0]==1&&state.visible(),"Remote close invokes the existing routine and waits for actual window removal");
+        state.set(false);check(!state.requestClose()&&closes[0]==1,"Removed window releases the old service callback");
         OverlayPresence reset=new OverlayPresence();check(!reset.visible(),"New process cannot inherit stale ON state");
         OverlayPresence.Listener[] self={null};self[0]=value->{if(value)reset.remove(self[0]);};reset.add(self[0]);reset.set(true);reset.set(false);
         check(!reset.visible(),"Client removal during notification is safe");

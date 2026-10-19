@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.5 / code 6 — 19 October 2026
+
+- Production Java compiles against SDK 35 with Java 8 target/generated R; 14 source-routing, 13 adapter-state and 10 presence/callback checks pass. Controller checks cover 14 link scenarios with Binder stand-ins. No APK assembly or device run.
+- New CLOSE uses the attached bar's existing close/source-release callback, without creating a service/window. Absence immediately reports OFF; an active bar reports OFF only after removal. The old callback is discarded on removal. Radio/source/media control logic is unchanged.
+- Unit checks: EQ & DSP 1.77 open/close toggle, active/inactive audio release, previous source ownership, repeated taps and confirmed OFF indication. Retain earlier adapter/Stop and overlay acceptance below.
+
 ## Bluetooth Controls 1.4 / code 5 — 19 October 2026
 
 - Production Java compiles against SDK 35 with Java 8 target/generated R. Existing 14 source-routing, 13 adapter-state and 12 launcher/native-playback scenarios pass; 7 new overlay-presence checks pass. The controller's 11 link scenarios use host Binder stand-ins. No Gradle/Java 25 execution, APK or actual window/IPC/radio test.

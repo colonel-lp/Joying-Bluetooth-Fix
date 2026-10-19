@@ -1,6 +1,6 @@
 # Bluetooth Controls
 
-**v1.4 / code 5** · `com.joying.bluetoothsettings`
+**v1.5 / code 6** · `com.joying.bluetoothsettings`
 
 A draggable floating bar for native Bluetooth reception on Joying/FYT Android 8.1 head units. The [native-mode setup](../readme.md#enable-native-bluetooth-with-adb) is required first.
 
@@ -34,7 +34,7 @@ Allow **display over other apps** on first launch. Drag the status strip to move
 - **Settings:** open native Bluetooth settings.
 - **×:** close the bar and release a source acquired by the app. Bluetooth remains enabled.
 
-EQ & DSP 1.76 can open/reuse the bar directly over its current screen and theme its shortcut from confirmed window presence; see the [companion link](../docs/eq-dsp-link.md). Its Audio button retains sole control of divert/release behaviour.
+EQ & DSP 1.77 can toggle the bar open/closed over its current screen and theme its shortcut from confirmed window presence; see the [companion link](../docs/eq-dsp-link.md). Its Audio button retains sole control of divert/release behaviour.
 
 Opening the icon again reuses the bar. Closing respects a source subsequently selected by another app. The return source is retained if restoration is not confirmed.
 

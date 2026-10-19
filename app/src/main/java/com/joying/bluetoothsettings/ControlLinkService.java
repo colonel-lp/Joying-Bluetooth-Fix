@@ -14,7 +14,7 @@ import java.util.HashMap;
 
 /** Versioned overlay-only link for EQ & DSP; never selects an audio source. */
 public final class ControlLinkService extends Service {
-    static final int VERSION=1, WATCH=1, OPEN=2, STATE=3, ERROR=4, UNWATCH=5;
+    static final int VERSION=1, WATCH=1, OPEN=2, STATE=3, ERROR=4, UNWATCH=5, CLOSE=6;
     private final Handler main=new Handler(Looper.getMainLooper());
     private final HashMap<IBinder,Client> clients=new HashMap<>();
     private final OverlayPresence.Listener presence=visible->{for(Client c:clients.values().toArray(new Client[0]))c.send(STATE,visible?1:0);};
@@ -35,7 +35,13 @@ public final class ControlLinkService extends Service {
             client.send(STATE,OverlayPresence.INSTANCE.visible()?1:0);return;
         }
         if(message.what==UNWATCH){if(client!=null)client.remove();return;}
-        if(message.what!=OPEN||client==null)return;
+        if(client==null)return;
+        if(message.what==CLOSE){
+            if(!OverlayPresence.INSTANCE.visible())client.send(STATE,0);
+            else if(!OverlayPresence.INSTANCE.requestClose())client.send(ERROR,2);
+            return;
+        }
+        if(message.what!=OPEN)return;
         if(Build.VERSION.SDK_INT>=23&&!Settings.canDrawOverlays(this)){client.send(ERROR,1);return;}
         if(OverlayPresence.INSTANCE.visible()){client.send(STATE,1);return;}
         try{

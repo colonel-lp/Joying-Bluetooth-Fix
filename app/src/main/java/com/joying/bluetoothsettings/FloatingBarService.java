@@ -206,7 +206,7 @@ public class FloatingBarService extends Service {
             }
         });
         windows.addView(bar, layout);
-        OverlayPresence.INSTANCE.set(true);
+        OverlayPresence.INSTANCE.attached(this::closeBar);
     }
     private Button button(LinearLayout row, String label, float weight, Runnable action) {
         Button button = new Button(this);
