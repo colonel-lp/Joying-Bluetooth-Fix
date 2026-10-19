@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.6 / code 7 — 19 October 2026
+
+- Production Java compiles against SDK 35 with Java 8 target/generated R. Host checks pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 focus-API and 15 launcher/native-playback scenarios. No APK assembly or device run.
+- Focus checks cover permanent media focus, denial, request identity, stale callbacks, legacy fallback and no automatic resume. Session checks cover release ordering, failed acquisition, source changes and close. Native playback checks cover Pause, Stop fallback and an unavailable session.
+- Device acceptance: start another Android player, select Audio ON and confirm it pauses. Select Audio OFF and confirm the Bluetooth sender pauses while the earlier player stays paused. Repeat with source changes, adapter shutdown, close and another app requesting focus. Confirm source restoration and the companion overlay link.
+
 ## Bluetooth Controls 1.5 / code 6 — 19 October 2026
 
 - Production Java compiles against SDK 35 with Java 8 target/generated R; 14 source-routing, 13 adapter-state and 10 presence/callback checks pass. Controller checks cover 14 link scenarios with Binder stand-ins. No APK assembly or device run.
@@ -18,6 +24,7 @@ From the repository root, with Java 17 or newer and `jdk.compiler`:
 
 ```sh
 python3 app/tests/run_checks.py --android-jar /path/to/platforms/android-35/android.jar
+python3 app/tests/check_audio_focus.py
 python3 app/tests/check_flows.py
 python3 scripts/persistence/test_installer.py
 ```

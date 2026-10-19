@@ -85,9 +85,12 @@ public class FlowChecks {
   p.send(PlaybackState.ACTION_SKIP_TO_NEXT);check(initial.command.equals("next"),"next uses native token");cases++;
   p.send(PlaybackState.ACTION_STOP);check(errors[0]==0&&initial.command.equals("stop"),"Stop uses the native handler");
   initial.state.actions=4; p.send(PlaybackState.ACTION_SKIP_TO_NEXT);check(errors[0]==1&&initial.command.equals("stop"),"other unavailable actions stay blocked"); initial.state.actions=54;cases++;
+  p.pauseForRelease();check(initial.command.equals("pause"),"audio release pauses the native sender");cases++;
+  initial.state.actions=4;p.pauseForRelease();check(initial.command.equals("stop"),"audio release falls back to native Stop");initial.state.actions=54;cases++;
   p.reconnect();MediaBrowser replacement=MediaBrowser.last;replacement.callback.onConnected();MediaController second=MediaController.last;
   first.callback.onConnectionFailed();initial.callback.onSessionDestroyed();check(p.ready()&&MediaController.last==second&&!replacement.disconnected,"stale callback cannot disconnect replacement");cases++;
   p.setEnabled(false);check(!p.ready()&&replacement.disconnected&&handler.pending==null,"off drops session and retry");cases++;
+  p.pauseForRelease();check(second.command.equals(""),"audio release does nothing without a session");cases++;
   p.setEnabled(true);MediaBrowser.last.callback.onConnectionFailed();check(handler.pending!=null,"failed binding schedules bounded retry");
   p.close();check(handler.pending==null&&!p.ready(),"close cancels reconnect");cases++;
   System.out.println(cases+" launcher/native-playback scenarios passed (host stand-ins).");

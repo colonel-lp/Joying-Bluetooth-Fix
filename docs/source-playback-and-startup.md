@@ -15,9 +15,17 @@ Bind explicitly to `com.syu.ms/app.ModuleService` with action `com.syu.ms.main`.
 
 Interface tokens must match the descriptors. Main module ID, command ID and source ID are distinct values. Bluetooth Music is source **3**; Android is source **0**. The service also supports source get operation 0 through its ModuleObject interface, but the app uses callback readback instead.
 
-The command follows the existing main-module/MCU/audio-device path. Power, ACC and call handling can prevent or override a selection. Dispatch acceptance alone does not confirm routing. The app confirms update 0 and retains the previous source before acquisition. Release restores it only while Bluetooth remains selected; an unrelated later source change is respected. Explicit Source OFF falls back to Android when no previous source was captured.
+The command follows the existing main-module/MCU/audio-device path. Power, ACC and call handling can prevent or override a selection. Dispatch acceptance alone does not confirm routing. The app confirms update 0 and retains the previous source before acquisition. Release restores it only while Bluetooth remains selected; an unrelated later source change is respected. Explicit Audio OFF falls back to Android when no previous source was captured.
 
 Received native audio uses alarm stream **4**, normally set to its maximum **7** for Bluetooth Music. Joying's sound service applies this policy and can overwrite direct volume changes. Source selection, remote playback and adapter enablement remain separate operations.
+
+## Audio focus
+
+Audio ON requests permanent `AUDIOFOCUS_GAIN` with media/music attributes before selecting the source. A denied request leaves the source unchanged. This sends permanent focus loss to the earlier Android player, so abandoning focus does not invite it to resume. Audio ON does not send Play to the Bluetooth sender.
+
+Audio OFF pauses the native sender, falling back to Stop if Pause is unavailable, then abandons focus and restores the source. No Play command is sent to an earlier player. Source acquisition failure, an external source change, adapter shutdown, focus loss and closing also release app-held focus. Opening the bar or observing an already-selected Bluetooth source does not take focus; explicitly pressing Play on that source does.
+
+Android 8.1 focus is cooperative: a player that ignores focus loss can continue playing. No global media keys, active-session enumeration or force-stop permission is used. The firmware receiver builds a focus request without submitting it; the floating app supplies the request for its own audio selection.
 
 ## Native playback
 
@@ -59,6 +67,7 @@ The original settings toggle can remain off/BLE-only after shutdown. A later ena
 
 ## References
 
+- [Android audio focus](https://developer.android.com/media/optimize/audio-focus)
 - [BluetoothAdapter](https://developer.android.com/reference/android/bluetooth/BluetoothAdapter)
 - [MediaBrowser](https://developer.android.com/reference/android/media/browse/MediaBrowser)
 - [MediaController](https://developer.android.com/reference/android/media/session/MediaController)

@@ -105,6 +105,11 @@ final class NativePlayback {
             else if (action == PlaybackState.ACTION_SKIP_TO_PREVIOUS) controls.skipToPrevious();
         } catch (RuntimeException failure) { listener.error("Native playback command failed"); }
     }
+    void pauseForRelease() {
+        if (!ready()) return;
+        if (supports(PlaybackState.ACTION_PAUSE)) send(PlaybackState.ACTION_PAUSE);
+        else send(PlaybackState.ACTION_STOP);
+    }
     void reconnect() { disconnect(); main.removeCallbacks(retry); if (enabled && !closed) connect(); }
     private void disconnect() {
         generation++;

@@ -47,6 +47,8 @@ public class FloatingBarService extends Service {
     private JoyingSource wire;
     private SourceController source;
     private NativePlayback playback;
+    private AudioFocusControl audioFocus;
+    private AudioSession audioSession;
     private AdapterController adapterControl;
     private boolean receiverRegistered, closing, destroyed, disabling;
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
@@ -54,6 +56,7 @@ public class FloatingBarService extends Service {
             int state = adapterState();
             if (state == BluetoothAdapter.STATE_OFF) {
                 disabling = false;
+                if (audioSession != null && audioSession.requested()) audioSession.stop();
                 source.releaseOwned(() -> {});
             }
             if (adapterControl != null) adapterControl.refresh();
@@ -77,7 +80,10 @@ public class FloatingBarService extends Service {
                 preferences.edit().putInt("previousSource", value).commit();
             }
             @Override public void later(Runnable task, long delay) { main.postDelayed(task, delay); }
-            @Override public void changed() { render(); }
+            @Override public void changed() {
+                if (audioSession != null) audioSession.routeChanged(source.active(), source.busy());
+                render();
+            }
             @Override public void error(String text) { FloatingBarService.this.error(text); }
         }, preferences.getInt("previousSource", -1));
         wire = new JoyingSource(this, main, new JoyingSource.Listener() {
@@ -90,6 +96,17 @@ public class FloatingBarService extends Service {
         });
         playback = new NativePlayback(this, main, new NativePlayback.Listener() {
             @Override public void changed() { render(); }
+            @Override public void error(String text) { FloatingBarService.this.error(text); }
+        });
+        audioFocus = new AudioFocusControl(this, main, () -> {
+            if (destroyed || audioSession == null || !audioSession.requested()) return;
+            audioSession.stop();
+            source.releaseActive(() -> {});
+        });
+        audioSession = new AudioSession(new AudioSession.Port() {
+            @Override public boolean acquireFocus() { return audioFocus.acquire(); }
+            @Override public void releaseFocus() { audioFocus.release(); }
+            @Override public void pauseBluetooth() { playback.pauseForRelease(); }
             @Override public void error(String text) { FloatingBarService.this.error(text); }
         });
         adapterControl = new AdapterController(new AdapterController.Port() {
@@ -161,13 +178,10 @@ public class FloatingBarService extends Service {
         LinearLayout row = new LinearLayout(this);
         bar.addView(row, new LinearLayout.LayoutParams(-1, dp(42)));
         previous = button(row, "|◀", 1, () -> playback.send(PlaybackState.ACTION_SKIP_TO_PREVIOUS));
-        play = button(row, "▶", 1, () -> playback.send(playback.playing() ? PlaybackState.ACTION_PAUSE : PlaybackState.ACTION_PLAY));
+        play = button(row, "▶", 1, this::playOrPause);
         stop = button(row, "■", 1, () -> playback.send(PlaybackState.ACTION_STOP));
         next = button(row, "▶|", 1, () -> playback.send(PlaybackState.ACTION_SKIP_TO_NEXT));
-        sourceButton = button(row, "Audio ?", 1.9f, () -> {
-            if (adapterState() != BluetoothAdapter.STATE_ON && !source.active()) error("Enable Bluetooth before selecting its source");
-            else source.toggle();
-        });
+        sourceButton = button(row, "Audio ?", 1.9f, this::toggleAudio);
         bluetoothButton = button(row, "BT ?", 1.6f, this::toggleBluetooth);
         button(row, "BT Settings", 2.1f, () -> openActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
         button(row, "×", .8f, this::closeBar).setContentDescription("Close floating controls and release the source selected by this app");
@@ -252,6 +266,7 @@ public class FloatingBarService extends Service {
         int state = adapterState();
         if (state == BluetoothAdapter.STATE_ON && !disabling) {
             disabling = true; render();
+            audioSession.stop();
             source.releaseActive(() -> {
                 if (destroyed) return;
                 disabling = false;
@@ -261,6 +276,22 @@ public class FloatingBarService extends Service {
             adapterControl.request(true);
         } else if (state == BluetoothAdapter.ERROR) error("Bluetooth adapter unavailable");
     }
+    private void toggleAudio() {
+        if (source.busy() || source.current() < 0) return;
+        if (source.active()) {
+            audioSession.stop();
+            source.toggle();
+        } else if (adapterState() != BluetoothAdapter.STATE_ON) {
+            error("Enable Bluetooth before selecting its source");
+        } else if (audioSession.begin()) source.toggle();
+    }
+    private void playOrPause() {
+        if (playback.playing()) playback.send(PlaybackState.ACTION_PAUSE);
+        else {
+            if (source.active() && !audioSession.begin()) return;
+            playback.send(PlaybackState.ACTION_PLAY);
+        }
+    }
     private void openActivity(Intent intent) {
         try { startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
         catch (RuntimeException failure) { error("Requested Android screen is unavailable"); }
@@ -268,6 +299,7 @@ public class FloatingBarService extends Service {
     private void closeBar() {
         if (closing) return;
         closing = true; render();
+        if (audioSession != null) audioSession.close();
         if (source == null) stopSelf();
         else source.releaseOwned(this::stopSelf);
     }
@@ -303,6 +335,7 @@ public class FloatingBarService extends Service {
     @Override public void onDestroy() {
         destroyed = true;
         main.removeCallbacksAndMessages(null);
+        if (audioSession != null) audioSession.close();
         if (adapterControl != null) adapterControl.cancel();
         if (receiverRegistered) unregisterReceiver(receiver);
         if (playback != null) playback.close();

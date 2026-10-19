@@ -34,7 +34,7 @@ From Android platform-tools, using an already-authorized connection:
 ./adb shell 'setprop sys.fyt.systemobd 1 && setprop persist.lsec.enable_a2dp 0 && am force-stop com.android.bluetooth && am start -a android.settings.BLUETOOTH_SETTINGS'
 ```
 
-Enable Bluetooth, pair the sender and select the Joying as its sound output. Select **Source ON** in Bluetooth Controls, or open Joying Bluetooth Music. The default native device name is `lsec-android`; use its current name if renamed.
+Enable Bluetooth, pair the sender and select the Joying as its sound output. Select **Audio ON** in Bluetooth Controls, or open Joying Bluetooth Music. The default native device name is `lsec-android`; use its current name if renamed.
 
 If Bluetooth remains off/BLE-only, request Android's enable confirmation:
 
@@ -62,8 +62,8 @@ Full operation requires `enabled: true` and `state: ON`. If connected but silent
 
 ## App status
 
-**Bluetooth Controls v1.5** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio OFF restores the previous source, or Android when no previous source is known. Close releases a source acquired by the app and leaves the adapter enabled.
+**Bluetooth Controls v1.6** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio ON requests permanent media focus to pause other Android players. Audio OFF pauses the Bluetooth sender, releases focus and restores the previous source, or Android when no previous source is known. No previous player is restarted. Close releases a source acquired by the app and leaves the adapter enabled.
 
-Receiving playback and the main floating controls are working on the target unit. The latest source adds direct enablement, transition handling and access to the native Stop handler; these changes need device confirmation. Native-mode setup remains a prerequisite. The app does not write system properties, restart Bluetooth, switch audio roles or select a source automatically.
+Receiving playback and the main floating controls are working on the target unit. The latest source adds audio-focus handling; its behavior needs device confirmation. Android 8.1 players must cooperate with audio-focus changes. Native-mode setup remains a prerequisite. The app does not write system properties, restart Bluetooth, switch audio roles or select a source automatically.
 
 EQ & DSP integration: [overlay launch and status link](docs/eq-dsp-link.md).
