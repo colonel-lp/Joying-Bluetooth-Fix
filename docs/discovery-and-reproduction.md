@@ -112,3 +112,25 @@ For the tested headphone mode, the Mac's Bluetooth connection was disconnected w
 Headphones connected with audio and working play/pause control. SBC/AAC/LDAC changes were reflected in actual codec activity; one capture used stereo LDAC at 96 kHz/24-bit with adaptive bitrate. The normal Joying buttons did not control headphone level: `com.syu.ms` reset Android music volume to **13/15**, and AVRCP reported **111/127**. `C32107.d()` returns the Android maximum minus 2, explaining the fixed 13. Ordinary Joying volume commands still reached that rule; an existing dedicated headphone-volume command was not established. No volume patch was implemented.
 
 Return to receiving with the command in section 2. Codec/volume quality and simultaneous receive/transmit operation remain unproven; headphone work is currently lower priority.
+
+## 7. Stock toggle fault and confirmed enable recovery
+
+Observed 18–19 October 2026: toggling Android Bluetooth off/on could leave `enabled: false`, `state: BLE_ON`, with only GATT active and no music receiver profile. One shutdown took about 6.2 seconds; switching on after about 1.8 seconds overlapped it. Waiting ten seconds did not resolve the later test, so a short toggle interval alone is not an established explanation.
+
+The shell command `svc bluetooth enable` was denied `BLUETOOTH_ADMIN` permission on this firmware. Its unchanged state was not evidence that a permitted enable request failed.
+
+While stuck, the following public Android enable action showed a prompt and recovered the adapter without restarting the Bluetooth process:
+
+```sh
+./adb shell am start -a android.bluetooth.adapter.action.REQUEST_ENABLE
+```
+
+Accept the prompt on the Joying, then inspect:
+
+```sh
+./adb shell dumpsys bluetooth_manager | head -n 4
+```
+
+The owner confirmed `enabled: true`, `state: ON`. This establishes a recovery method; the exact cause of the stock toggle/continuation fault remains unresolved. Earlier code/logs also showed a Settings enable request promoting BLE_ON into full ON and starting the native audio profiles.
+
+The current [v1.1 shortcut source](../app/readme.md) uses this enable confirmation when `BluetoothAdapter.isEnabled()` is false, checks the result/state, then opens settings. It exits on cancellation and stays alive while waiting for the result. It does not monitor the stock settings screen; reopen the launcher icon if that screen gets stuck again. The ADB recovery was unit-tested; the new app flow still needs acceptance on the unit.
