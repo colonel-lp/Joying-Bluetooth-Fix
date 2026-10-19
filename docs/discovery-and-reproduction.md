@@ -65,12 +65,15 @@ The vendor receiver builds an AudioFocusRequest but does not call AudioManager.r
 
 Inspection of the supplied Bluetooth VDEX, restored with vdexExtractor and validated against its original DEX checksum, established:
 
+- Native discovery, RFCOMM data-connection handling and A2DP receive/transmit code are still present. The native/JNI libraries retain radio initialization and substantial profile implementations; code presence alone does not establish hardware or device compatibility.
 - `AdapterService.useExternalBt()` selects the vendor/external path when `sys.fyt.bluetooth_type != 0` **and** `sys.fyt.systemobd` is false. Setting `systemobd=1` selects the retained native enable/profile path without changing module type.
-- In the external path, `startCoreServices()` bypasses native profile startup. The BLE-started handler skips `enableNative()` and posts message **500 after 3 ms**, while the normal enable-ready event is **3**. This matches the observed stuck `BLE_TURNING_ON` and unresponsive controls.
-- The external bonded-device list can be fabricated from BLINK's config for type 1. Its presence is not evidence of a native connection.
-- `bluetooth.mock_stack=1` selects `bluetooth_test`, but that library contains real discovery, profiles and HCI initialization. Native operation succeeded without changing this property. A package name, running HAL or symbol list alone had not proved functionality.
+- In the external path, `startCoreServices()` bypasses native profile startup. `AdapterState.PendingCommandState` handles the BLE-started event without calling `enableNative()` and posts message **500 after 3 ms**, while the expected enable-ready event is **3**. The wrong completion message leaves the original sequence stuck at `BLE_TURNING_ON`, explaining the unresponsive native switch in this configuration.
+- For module type 1, the external bonded-device list is reconstructed from **`/data/blink/bt_conf.ini`**. This explains a phone appearing as paired even while Android's native radio has not started; a populated list does not prove native connectivity.
+- JNI selection with **`bluetooth.mock_stack=1`** loads **`bluetooth_test.default.so`**. Despite its name, this library contains substantial discovery, RFCOMM, audio-profile and HCI initialization code. Native discovery and audio succeeded without changing the property; selecting a library named “test” did not mean the stack was an empty mock.
 
-These are observations of this firmware, not a general claim that every FYT unit has the same implementation.
+The existing **`sys.fyt.systemobd` override** bypasses FYT's external branch and enables native startup without changing `sys.fyt.bluetooth_type`. Its value is cached by the Bluetooth process, so a process restart is needed after changing it. It is volatile across reboot; the persistence procedure retains it in the boot configuration.
+
+These findings apply to this firmware. They explain the original external-path `BLE_TURNING_ON` failure. The later `BLE_ON` off/on fault, seen after the override was already active, is a separate issue described in section 7. RFCOMM code availability is established; end-to-end RFCOMM data transfer has not been reported.
 
 ## 5. Diagnose a silent connection
 
