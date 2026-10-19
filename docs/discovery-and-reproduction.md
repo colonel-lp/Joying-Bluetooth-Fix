@@ -133,4 +133,4 @@ Accept the prompt on the Joying, then inspect:
 
 The owner confirmed `enabled: true`, `state: ON`. This establishes a recovery method; the exact cause of the stock toggle/continuation fault remains unresolved. Earlier code/logs also showed a Settings enable request promoting BLE_ON into full ON and starting the native audio profiles.
 
-The former v1.1 shortcut used this enable confirmation before opening settings. The current [v1.2 floating controls](../app/readme.md) use it from the adapter ON button; Settings is a separate button, and launching the bar does not force Bluetooth on. Cancellation exits the prompt without looping. The ADB recovery was unit-tested; the v1.2 overlay, adapter and remote-control flows still need acceptance on the unit.
+The [floating controls](../app/readme.md) now use direct adapter enablement with the declared Android 8.1 permission, state confirmation and one bounded retry. The enable confirmation remains a fallback if direct access is denied. Settings is a separate button; launching the bar does not force Bluetooth on. Current app status and validation are recorded separately in [validation.md](validation.md).

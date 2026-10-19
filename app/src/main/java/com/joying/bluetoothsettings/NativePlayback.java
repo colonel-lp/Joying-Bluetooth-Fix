@@ -82,7 +82,10 @@ final class NativePlayback {
         CharSequence text = metadata == null ? null : metadata.getDescription().getTitle();
         title = text == null ? "" : text.toString();
     }
-    boolean supports(long action) { return ready() && (state.getActions() & action) != 0; }
+    boolean supports(long action) {
+        // The native receiver implements Stop but omits its advertised action bit.
+        return ready() && (action == PlaybackState.ACTION_STOP || (state.getActions() & action) != 0);
+    }
     boolean playing() { return state != null && state.getState() == PlaybackState.STATE_PLAYING; }
     boolean ready() { return controller != null && state != null && state.getState() != PlaybackState.STATE_NONE && state.getState() != PlaybackState.STATE_ERROR; }
     String summary() {

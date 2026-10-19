@@ -1,71 +1,45 @@
-# Bluetooth Controls source
+# Bluetooth Controls
 
-**v1.2 / code 3** adds a draggable floating control bar for the tested Joying SC9853i, Android 8.1. Package remains `com.joying.bluetoothsettings`, independent of the EQ/DSP app. Build current releases from `src/main/`; the original `smali/` shortcut is retained only as a historical v1.0 reference.
+**v1.3 / code 4** · `com.joying.bluetoothsettings`
 
-## Use
+A draggable floating bar for native Bluetooth reception on Joying/FYT Android 8.1 head units. The [native-mode setup](../readme.md#enable-native-bluetooth-with-adb) is required first.
 
-1. Build/install, open **Bluetooth Controls**, and allow **display over other apps** when Android asks. Return to the app. The foreground notification keeps the bar running over other apps.
-2. Drag the status strip to move the bar. Its position is remembered and constrained to the screen after orientation changes. Opening the icon again reuses the existing bar.
-3. Use **Settings** to open Android Bluetooth settings, pair/connect the sender and select the Joying as the Mac's sound output.
-4. **BT OFF** means the adapter is currently off; tap to show Android's enable confirmation. **BT ON** means it is currently on; tap to release the Bluetooth audio source and request adapter shutdown. The label follows actual state, not merely request acceptance. During a transition the button waits. Canceling enable does not repeat the prompt.
-5. **Source OFF** means another Joying source is selected; tap to select Bluetooth Music source **3**. **Source ON** means Bluetooth Music is selected; tap to restore the source remembered before acquisition. If Bluetooth was already the source when this app opened, explicit Source OFF returns to Android source **0**. Source state is confirmed through Joying's main-module update 0; an unconfirmed change produces an error.
-6. Use **previous, play/pause, stop, next** for the native receiver's remote sender. Buttons are dimmed when the native session does not advertise support. In the supplied capture, play/pause/previous/next are advertised; Stop is not. Commands target the native Bluetooth session, not BBC Sounds or another local player.
-7. **×** closes the bar and notification, releases a source acquired by this app, and leaves the Bluetooth adapter enabled. If the user already selected another source, closing respects that selection. Use BT OFF first when the adapter should also be turned off.
+## Source layout
 
-The status strip shows adapter state, native session availability/playback and a track title when supplied. Long-press it without dragging to reconnect the source and media-service clients. Settings and × remain available when the native media session is missing.
+- `src/main/`: current Android application.
+- `gradle/wrapper/`: Gradle distribution settings.
+- `tests/`: source and lifecycle checks.
+- `smali/`: historical shortcut source, excluded from the build.
 
-## Existing setup and limits
+## Build
 
-The existing [native Bluetooth setup](../docs/discovery-and-reproduction.md) is still required. This ordinary app does not set `sys.fyt.systemobd`, switch receive/transmit roles, force-stop Bluetooth or modify the sound/Bluetooth system packages. Granting overlay permission does not grant those privileges. Receiving mode remains the current objective.
+Open this `app/` directory in Android Studio. Use the `gradle-wrapper.properties` distribution, **Gradle JVM 25**, Android SDK **35**, Gradle **9.3.1** and AGP **8.13.2**. Minimum SDK is 21; target SDK is 27. There is no nested `app/app/` module.
 
-BT ON uses the confirmed Android enable prompt, including when the adapter reports off in the stuck BLE-only state. BT OFF uses the Android 8.1 adapter API with BLUETOOTH_ADMIN; it waits for state broadcasts and reports an unconfirmed shutdown after ten seconds. It does not repair the underlying vendor toggle fault. No automatic boot launch, auto connection or automatic source selection is enabled.
-
-Source on/off and remote playback remain separate: selecting a source does not automatically start the sender. Source release does not send pause to the Mac, and returning to a local source does not send play to another app. Joying's existing service applies stream-4 volume policy; the floating app does not fight it with direct alarm-volume writes.
-
-The bar uses a foreground service and stops on explicit close; the system can still terminate it. The source it acquired is remembered so reopening can restore it. If a release cannot be verified, the error is shown and the return-source record is retained. If necessary, select another source using Joying's original apps. Overlay behavior, binder access, remote controls and adapter cycling need acceptance on the actual unit.
-
-## Build in Android Studio
-
-Open the repository's **`app/`** directory. The root project is the application module; there is no nested `app/app/` directory. Use:
-
-- Gradle **9.3.1**, selected from `gradle/wrapper/gradle-wrapper.properties`.
-- Android Gradle Plugin **8.13.2**.
-- Gradle JVM **25** (your existing Java/Gradle Java home) and Android SDK Platform **35**.
-- Minimum SDK **21**, target SDK **27**; intended device is Android 8.1/API 27.
-
-Sync, then build the debug APK. With an installed Gradle 9.3.1:
+With an installed Gradle 9.3.1:
 
 ```sh
-cd app
 gradle assembleDebug
 adb install -r build/outputs/apk/debug/BluetoothControls-debug.apk
 ```
 
-Use Android Studio's **gradle-wrapper.properties** distribution and keep **Gradle JDK / Gradle Java home 25** selected. Gradle 9.3.1 supports Java 25 and its compatibility table includes AGP 8.13, so AGP remains 8.13.2. The settings guard accepts Gradle 9.1–9.5 and rejects 9.6+, which removed an internal API used by AGP 8.x. Java language/class targets remain 8 and Android SDK targets remain unchanged; the JVM running Gradle is a separate setting.
+The command-line wrapper launchers/JAR are not included. Use the same signing key for updates. Local SDK paths and signing material remain outside the repository.
 
-References: [Gradle 9.3.1 compatibility](https://docs.gradle.org/9.3.1/userguide/compatibility.html), [official distribution checksums](https://gradle.org/release-checksums/), and [AGP 8.x/Gradle 9.6 incompatibility](https://docs.gradle.org/current/userguide/upgrading_version_9.html#agp_8x_incompatible).
+## Controls
 
-The distribution properties are included; command-line wrapper launchers/JAR are not. Use Android Studio or an installed Gradle 9.3.1 for terminal builds. Keep local SDK paths in ignored `local.properties`. Existing installs with the same package and signing key can be updated in place. A differently signed installation must first be uninstalled, which also clears saved bar position/return source; leave Bluetooth source before doing that.
+Allow **display over other apps** on first launch. Drag the status strip to move the bar; long-press it to reconnect its service clients.
 
-No APKs, signing keys, vendor libraries or binary payloads are published. There are no external application dependencies.
+- **Previous / play-pause / Stop / next:** control the native sender. Stop uses the firmware's handler even though its advertised control list omits Stop; the remote player may ignore it.
+- **Source:** select Bluetooth Music, or restore the previous source. If no previous source was captured, Source OFF selects Android.
+- **BT:** directly request adapter on/off using the declared Android 8.1 permission. State is confirmed before the transition finishes. One enable retry is allowed after three seconds in a stable off/BLE-only state; transitions are bounded to twelve seconds. A confirmation dialog is used only if direct enablement is denied.
+- **Settings:** open native Bluetooth settings.
+- **×:** close the bar and release a source acquired by the app. Bluetooth remains enabled.
 
-## Validation
+Opening the icon again reuses the bar. Closing respects a source subsequently selected by another app. The return source is retained if restoration is not confirmed.
 
-```sh
-python3 app/tests/run_checks.py --android-jar /path/to/platforms/android-35/android.jar
-python3 app/tests/check_flows.py
-```
+## Status and limitations
 
-Java 17 with `jdk.compiler` is required. The first command checks 14 source-routing scenarios, manifest permissions/lifecycle declarations, and optionally compiles all production Java against the SDK (using a generated R stand-in). The second checks 12 launcher/native-session scenarios with host Android stand-ins, including overlay permission denial, canceled/recreated enable prompts, unsupported actions and stale connection callbacks. These checks do not emulate a head unit, prove Binder/audio access, or assemble an APK.
+The floating controls work with native receiving mode. The latest direct-enable and Stop changes await device confirmation. The stock Bluetooth settings fault remains a firmware limitation.
 
-Completed here: Android SDK Java compilation and 26 focused host scenarios. The later Java 25 build-configuration update was checked against official Gradle compatibility guidance and its published distribution checksum; Java 25/Gradle execution was not run here because the workspace only has Java 17. Full Gradle/resource packaging and on-unit visual/audio acceptance remain pending; the owner builds the APK.
+No root access, system patch, property writer, audio-role switching, automatic device connection or boot launch is included. The overlay grant is separate from system privileges. Headphone-volume integration remains outside the current app.
 
-On-unit acceptance: grant/deny overlay permission; drag and reopen; connect the Mac; Source ON then OFF; each supported media button; BT OFF then ON including BLE-only recovery; × while source acquisition is pending; close after another app selects a different source. Confirm that other apps' media controls are unaffected.
-
-For a diagnostic capture on the Mac Desktop:
-
-```sh
-./adb logcat -d -v threadtime > ~/Desktop/joying-bt-floating.txt
-```
-
-App diagnostics use the `JoyingBluetooth` log tag. The [interface investigation](../docs/source-playback-and-startup.md) records the underlying commands and observed restrictions.
+Technical details and validation records are in [docs/](../docs/).

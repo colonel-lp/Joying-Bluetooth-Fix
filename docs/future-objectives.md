@@ -1,20 +1,14 @@
-# App objectives and current scope
+# App scope
 
-Updated 19 October 2026. The owner explicitly authorized the v1.2 floating control-bar source after the earlier investigation.
+## Current
 
-## Implemented in v1.2 source; device acceptance pending
+Floating native-receiver controls, source selection/restore, adapter control, Bluetooth settings access and playback status. The bar retains its position and uses a foreground notification.
 
-- Small draggable overlay with remembered position and foreground notification.
-- Native receiver previous/play-pause/stop/next controls, enabled according to the session action mask.
-- Joying Bluetooth Music source on/off via main-module command/update 0, with previous-source restore and readback confirmation.
-- Android Bluetooth adapter off and confirmed enable/recovery prompt.
-- Native settings access, playback/status text, explicit close and service reconnect on a long press of the status strip.
+## Further work
 
-## Future investigation
+- Diagnose the stock Bluetooth toggle fault; assess system changes only if necessary.
+- Establish an app-accessible property/restart helper if needed for native-mode setup.
+- Investigate simultaneous receive/transmit profiles and headphone-volume control.
+- Consider collapse/expand behavior or automatic source selection if required.
 
-- Fix the underlying stock Bluetooth toggle fault if evidence justifies a system/framework patch.
-- Establish an authorized app-accessible helper for property writes/process restart, or retain USB configuration; ordinary app/overlay permission is insufficient.
-- Enable receive/transmit profiles together if feasible; headphone volume integration remains lower priority.
-- Optional collapse/expand behavior and automatic source selection on sender connection, only if requested.
-
-No system patch, native-mode property writer, headphone-volume fix, automatic source selection or boot launch is part of v1.2.
+The current app does not write system properties, restart Bluetooth, switch audio roles or launch at boot.

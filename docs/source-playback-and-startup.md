@@ -1,98 +1,68 @@
-# Source, playback controls and startup investigation
+# Source, playback and adapter interfaces
 
-19 October 2026. Initial investigation followed by explicitly authorized [v1.2 floating-control source](../app/readme.md). The app now implements source selection and native playback access; real unit acceptance remains pending. No Bluetooth package or DSP service patch was made. Applies to the supplied Joying SC9853i Android 8.1 firmware. See [confirmed receiving procedure](discovery-and-reproduction.md).
+Applies to the Joying SC9853i Android 8.1 firmware. Native-mode setup and audio-role selection are described in the [project README](../readme.md).
 
-## Source selection and level 7
+## Joying audio source
 
-The native receiver uses Android **STREAM_ALARM (4)**. The observed **7** is its volume level, not a stream number. Joying's sound service owns this policy; directly setting the alarm volume can be overwritten.
+Bind explicitly to `com.syu.ms/app.ModuleService` with action `com.syu.ms.main`. This returns `com.syu.ipc.IRemoteModule` for the main module.
 
-The existing service exposes the main module through:
+| Operation | Wire format |
+|---|---|
+| Select source | Transaction 1, command 0, integer array containing the source ID, null float/string arrays; one-way. |
+| Register source callback | Transaction 3, callback Binder, update 0, flush 1; one-way. |
+| Unregister callback | Transaction 4, callback Binder, update 0; one-way. |
+| Source update | `com.syu.ipc.IModuleCallback`, transaction 1: update ID, integer/float/string arrays. |
 
-- Package/component: `com.syu.ms/app.ModuleService`.
-- Intent action: `com.syu.ms.main` (retain this action when binding explicitly).
-- Interface: `com.syu.ipc.IRemoteModule`.
-- Source request: `cmd(0, new int[]{sourceId}, null, null)`.
-- Current-source readback: `get(0, null, null, null)` returning a `ModuleObject` containing the source value. Update ID 0 also publishes source changes.
+Interface tokens must match the descriptors. Main module ID, command ID and source ID are distinct values. Bluetooth Music is source **3**; Android is source **0**. The service also supports source get operation 0 through its ModuleObject interface, but the app uses callback readback instead.
 
-The alternative toolkit service exposes module 0 as the same main module. Main module ID, command ID and audio source ID are separate numbers.
+The command follows the existing main-module/MCU/audio-device path. Power, ACC and call handling can prevent or override a selection. Dispatch acceptance alone does not confirm routing. The app confirms update 0 and retains the previous source before acquisition. Release restores it only while Bluetooth remains selected; an unrelated later source change is respected. Explicit Source OFF falls back to Android when no previous source was captured.
 
-Static trace: `ModuleService.onBind` -> main module `module.j.al`; command 0 -> `module.j.e.b.a(sourceId)` -> `module.j.a.a(int)` -> `module.j.h.aj(int)` -> current-source state/`sys.app_id`, MCU command and `AudioDevice.appId`. It is a service call, not a broadcast or a direct `sys.app_id` property write. The service checks power/ACC conditions and can override the source for a call; acknowledge actual readback rather than treating dispatch as success.
+Received native audio uses alarm stream **4**, normally set to its maximum **7** for Bluetooth Music. Joying's sound service applies this policy and can overwrite direct volume changes. Source selection, remote playback and adapter enablement remain separate operations.
 
-`AudioDevice.a()` applies per-source Android stream policy. Source IDs 3 and 15 select the stream-4 path through `f()` -> `app.u.j()` -> the alarm stream's maximum volume; other source paths mute it. Calls, mute and navigation can modify this policy. The owner's `joying-bt-controls.txt` capture confirms **source 3** while native Mac music plays through the original Joying Bluetooth Music screen, with stream 4 at **7/7**. The original Joying Bluetooth UI APK has not been traced in this investigation; the service endpoint and observed sound policy have. Direct source selection by our own app remains untested.
+## Native playback
 
-The supplied service manifest has no application/service permission gate on this endpoint; its intent filter makes the service exported under its legacy target. The inspected binding and main command path contain no caller-signature check. This is a viable ordinary-app integration candidate, with device acceptance still required.
-
-To leave Bluetooth audio, remember the previous source and request it through the same main-module command. Restore only while Bluetooth remains the source selected by our app, so an explicit later user source change is respected. Pausing the sender, changing source and disabling Bluetooth are separate operations. Do not force stream 4 to zero as a substitute for releasing the source.
-
-## Native playback controls
-
-The supplied native Bluetooth package contains an exported service:
+Bind `MediaBrowser` to:
 
 `com.android.bluetooth/com.android.bluetooth.a2dpsink.mbs.A2dpMediaBrowserService`
 
-Its manifest declares the `android.media.browse.MediaBrowserService` action without a service permission gate. `onGetRoot()` accepts the client and returns a browser root. `onCreate()` publishes an active `MediaSession` and session token.
+The service is exported without a service permission gate and accepts browser clients. Obtain its session token and use `MediaController.TransportControls`; no global session enumeration is required. The native service sends AVRCP press/release commands to its current connected device.
 
-An ordinary app can attempt an explicit `MediaBrowser` connection, obtain its session token, construct a `MediaController`, then use `getTransportControls()`. This avoids selecting an unrelated local player's session and does not require global media-session enumeration or notification-listener access.
-
-| Transport control | Native AVRCP operation |
+| Control | AVRCP operation |
 |---|---|
-| Play | 68 / 0x44 |
-| Pause | 70 / 0x46 |
-| Stop | 69 / 0x45 |
-| Next | 75 / 0x4B |
-| Previous | 76 / 0x4C |
-| Fast forward | 73 / 0x49 |
-| Rewind | 72 / 0x48 |
+| Play | 0x44 |
+| Pause | 0x46 |
+| Stop | 0x45 |
+| Next | 0x4B |
+| Previous | 0x4C |
+| Fast forward | 0x49 |
+| Rewind | 0x48 |
 
-These are AVRCP operation IDs, not Android key-event codes. The service sends a press followed by a release to its current A2DP device. Its AVRCP controller requires a matching connected device and BLUETOOTH permission. Controls should be disabled when the browser/device is unavailable; a sender/player may support only some commands. Session playback state and metadata can also be observed.
+These values are AVRCP operations, not Android key-event codes. The captured session advertises action mask **54**: play, pause, previous and next. Its code also implements Stop despite omitting the Stop action bit. The app allows that specific handler; the sender may still ignore the command. Other buttons follow the action mask. Playback state and metadata come from the same native session.
 
-This is distinct from `com.syu.ms.bt`, which dispatches to Joying's vendor Bluetooth driver. Native reception was enabled alongside that separate external stack; vendor playback commands must not be assumed to control the native Mac connection. The owner confirms that the original Joying app's playback buttons have no effect on the Mac. That fits the separate command paths; it does not establish that native AVRCP commands fail. No Bluetooth patch appears necessary for an initial browser/control test. End-to-end commands from our own app remain untested.
+Joying's `com.syu.ms.bt` module dispatches to its separate vendor driver. Those playback buttons do not control the native Mac connection. Generic system media keys can reach another local player. `media monitor A2dpMediaBrowserService` was rejected for missing media-control permission; its trailing “No session found” does not establish that the session disappeared.
 
-The same device capture confirms an active **A2dpMediaBrowserService** session owned by `com.android.bluetooth`, reporting playing state (3) and actions **54**: play, pause, previous and next. Stop/rewind/fast-forward have handlers in the inspected code but are not advertised in this snapshot. Metadata fields are currently empty. One controller is registered; this does not prove a successful remote-control operation. BBC Sounds is the system's selected media-button session, and Spotify has another session, so generic media-key dispatch would not reliably test Bluetooth.
+## Adapter control
 
-## Startup permissions
+On Android 8.1, declared `BLUETOOTH_ADMIN` permits direct `BluetoothAdapter.enable()`/`disable()` calls following a button press. The app already declares that normal permission. Routine enablement does not need Android's repeated confirmation dialog; the public confirmation remains a fallback if direct enablement throws a permission denial.
 
-| Action | Ordinary app on this Android 8.1 unit |
-|---|---|
-| Check full Bluetooth enablement/state | Public adapter APIs; current app declares BLUETOOTH. |
-| Recover through Android enable confirmation | Already confirmed manually; v1.1 implements the flow, awaiting app acceptance. |
-| Read `sys.fyt.systemobd` and role flag | Can attempt `getprop`; verify app-context access and handle an unreadable value explicitly. |
-| Request ordinary adapter disable/enable | Android 8.1 allows this with BLUETOOTH_ADMIN; v1.2 declares it for shutdown and uses the confirmed prompt for enablement. The vendor toggle fault still needs acceptance testing. |
-| Set `sys.fyt.systemobd` / role flag | Property-service/SELinux access is required. ADB-shell success does not establish app access. No verified existing app-accessible setter was found. |
-| Force-stop `com.android.bluetooth` | FORCE_STOP_PACKAGES is signature/privileged; an ordinary app cannot reproduce the ADB command merely by executing `am`. |
+Requests are asynchronous. The app waits for state confirmation, defers requests during transitions, allows one enable retry after three seconds in a stable off/BLE-only state, and reports an unconfirmed transition after twelve seconds. Timers are canceled on close. On older Android, `getLeState()` is attempted to distinguish BLE transition states hidden by the public OFF value; public state is used if that interface is unavailable.
 
-Android adapter off/on is different from restarting the Bluetooth process. The native-mode flag is cached in `AdapterService` class initialization, so a normal adapter toggle does not guarantee it is reread. Merely adding a privileged permission also does not automatically grant SELinux property-write access.
+The original settings toggle can remain off/BLE-only after shutdown. A later enable request has recovered it. The new app handling does not patch the underlying framework fault and still needs device confirmation after the change.
 
-Preferred startup flow: read configuration and adapter state; if configuration is correct, use normal enable/recovery and avoid a process restart. If configuration is wrong, use the documented USB persistence procedure or a separately verified privileged helper. Only restart a process that needs to reload changed configuration, then wait for full ON/profile readiness before enabling source/playback controls. Never silently continue with an unreadable property or an unverified write.
+## Privilege limits
 
-## Device capture and next control test
+- Checking Bluetooth state is available to the app. Reading native-mode properties can be attempted with suitable error handling.
+- Property writes are controlled by the property service/SELinux. ADB-shell access does not establish ordinary-app access.
+- Force-stopping another package requires signature/privileged access. Overlay permission does not provide it.
+- Native-mode flags are cached during Bluetooth process initialization. Adapter off/on is not equivalent to reloading changed startup properties.
+- Receiving/transmitting roles remain selected at process startup. No property writer, privileged helper or system patch is included in the app.
 
-While native Mac music is audible with the original Joying Bluetooth Music screen open, capture:
+## References
 
-```sh
-{
-./adb shell getprop sys.app_id
-./adb shell media volume --stream 4 --get
-./adb shell dumpsys media_session
-} > ~/Desktop/joying-bt-controls.txt
-```
-
-Completed: source 3, alarm volume 7/7 and the active native session are confirmed as above. Next, target that exact session while Mac music plays:
-
-```sh
-./adb shell media monitor A2dpMediaBrowserService
-```
-
-The owner's monitor attempt was rejected with **Missing permission to control media**. The trailing **No session found** is the command's generic follow-up after the exception, not evidence that the session disappeared. This did not test AVRCP. The app instead binds the exported browser and obtains its session token without global session enumeration; test play/pause/previous/next from the v1.2 bar after building it.
-
-The subsequent app test should cover source acquire/readback, each sender control, source release and returning to local playback; permission checks for property writes must run as the app, not as ADB shell.
-
-## References and evidence limits
-
-Static evidence: the supplied factory `190000000_com.syu.ms.apk`, native Bluetooth APK manifest and checksum-validated unquickened Bluetooth DEX. Private decompiled code and personal logs are not published here. Observed playback/volume results are documented in the reproduction guide; the owner's source/session capture was reviewed as recorded above. The targeted remote-control test is pending. No APK build or patch was performed for this investigation.
-
-- [MediaBrowser and session token](https://developer.android.com/reference/android/media/browse/MediaBrowser)
+- [BluetoothAdapter](https://developer.android.com/reference/android/bluetooth/BluetoothAdapter)
+- [MediaBrowser](https://developer.android.com/reference/android/media/browse/MediaBrowser)
 - [MediaController](https://developer.android.com/reference/android/media/session/MediaController)
-- [AOSP media command: targeted session monitor and interactive controls](https://android.googlesource.com/platform/frameworks/base/+/f829b5df5ed8f80ef41fe54cc4deb70fd8ff914e/cmds/media/src/com/android/commands/media/Media.java)
 - [Android 8.1 permission definitions](https://android.googlesource.com/platform/frameworks/base/+/android-8.1.0_r1/core/res/AndroidManifest.xml)
-- [Android 8.1 property service access checks](https://android.googlesource.com/platform/system/core/+/android-8.1.0_r1/init/property_service.cpp)
+- [Android 8.1 property service](https://android.googlesource.com/platform/system/core/+/android-8.1.0_r1/init/property_service.cpp)
+
+Static interface findings come from the supplied service/Bluetooth binaries. Private decompilations and personal diagnostic captures are excluded from the repository. Validation and device-check records are kept in [validation.md](validation.md).

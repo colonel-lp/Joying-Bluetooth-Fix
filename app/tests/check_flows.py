@@ -80,10 +80,11 @@ public class FlowChecks {
   p.setEnabled(true);MediaBrowser first=MediaBrowser.last;
   check(first.component.pkg.equals("com.android.bluetooth")&&first.component.cls.endsWith(".a2dpsink.mbs.A2dpMediaBrowserService"),"explicit native receiver component");cases++;
   first.callback.onConnected();MediaController initial=MediaController.last;
-  check(p.ready()&&p.playing()&&!p.supports(PlaybackState.ACTION_STOP),"use advertised action mask");cases++;
+  check(p.ready()&&p.playing()&&p.supports(PlaybackState.ACTION_STOP),"native Stop handler is available despite omitted action bit");cases++;
   p.send(PlaybackState.ACTION_PAUSE);check(initial.command.equals("pause"),"pause uses native token");
   p.send(PlaybackState.ACTION_SKIP_TO_NEXT);check(initial.command.equals("next"),"next uses native token");cases++;
-  p.send(PlaybackState.ACTION_STOP);check(errors[0]==1&&initial.command.equals("next"),"unsupported stop does not send command");cases++;
+  p.send(PlaybackState.ACTION_STOP);check(errors[0]==0&&initial.command.equals("stop"),"Stop uses the native handler");
+  initial.state.actions=4; p.send(PlaybackState.ACTION_SKIP_TO_NEXT);check(errors[0]==1&&initial.command.equals("stop"),"other unavailable actions stay blocked"); initial.state.actions=54;cases++;
   p.reconnect();MediaBrowser replacement=MediaBrowser.last;replacement.callback.onConnected();MediaController second=MediaController.last;
   first.callback.onConnectionFailed();initial.callback.onSessionDestroyed();check(p.ready()&&MediaController.last==second&&!replacement.disconnected,"stale callback cannot disconnect replacement");cases++;
   p.setEnabled(false);check(!p.ready()&&replacement.disconnected&&handler.pending==null,"off drops session and retry");cases++;

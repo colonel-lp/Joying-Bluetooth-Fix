@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
@@ -46,6 +47,7 @@ public class FloatingBarService extends Service {
     private JoyingSource wire;
     private SourceController source;
     private NativePlayback playback;
+    private AdapterController adapterControl;
     private boolean receiverRegistered, closing, destroyed, disabling;
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -54,7 +56,7 @@ public class FloatingBarService extends Service {
                 disabling = false;
                 source.releaseOwned(() -> {});
             }
-            if (state == BluetoothAdapter.STATE_ON) disabling = false;
+            if (adapterControl != null) adapterControl.refresh();
             playback.setEnabled(state == BluetoothAdapter.STATE_ON);
             render();
         }
@@ -89,6 +91,22 @@ public class FloatingBarService extends Service {
         playback = new NativePlayback(this, main, new NativePlayback.Listener() {
             @Override public void changed() { render(); }
             @Override public void error(String text) { FloatingBarService.this.error(text); }
+        });
+        adapterControl = new AdapterController(new AdapterController.Port() {
+            @Override public int state() { return adapterFullState(); }
+            @Override public boolean setEnabled(boolean enabled) {
+                return adapter != null && (enabled ? adapter.enable() : adapter.disable());
+            }
+            @Override public long now() { return SystemClock.uptimeMillis(); }
+            @Override public void later(Runnable task, long delay) { main.postDelayed(task, delay); }
+            @Override public void changed() {
+                playback.setEnabled(adapterState() == BluetoothAdapter.STATE_ON);
+                render();
+            }
+            @Override public void error(String text) { FloatingBarService.this.error(text); }
+            @Override public void enablePermissionRequired() {
+                openActivity(new Intent(FloatingBarService.this, SettingsShortcut.class).setAction(SettingsShortcut.ENABLE));
+            }
         });
         try {
             createBar();
@@ -221,22 +239,25 @@ public class FloatingBarService extends Service {
         try { return adapter == null ? BluetoothAdapter.ERROR : adapter.getState(); }
         catch (RuntimeException failure) { return BluetoothAdapter.ERROR; }
     }
+    private int adapterFullState() {
+        if (adapter != null && Build.VERSION.SDK_INT <= 28) {
+            try { return (Integer) BluetoothAdapter.class.getMethod("getLeState").invoke(adapter); }
+            catch (ReflectiveOperationException | RuntimeException ignored) {}
+        }
+        return adapterState();
+    }
     private void toggleBluetooth() {
+        if (adapterControl == null || adapterControl.busy() || disabling) return;
         int state = adapterState();
         if (state == BluetoothAdapter.STATE_ON && !disabling) {
             disabling = true; render();
             source.releaseActive(() -> {
                 if (destroyed) return;
-                try {
-                    if (adapter == null || !adapter.disable()) { disabling = false; error("Bluetooth off request was rejected"); }
-                } catch (RuntimeException failure) { disabling = false; error("Bluetooth off permission unavailable"); }
-                render();
-                main.postDelayed(() -> {
-                    if (disabling) { disabling = false; error("Bluetooth shutdown not confirmed; open Settings"); render(); }
-                }, 10000);
+                disabling = false;
+                adapterControl.request(false);
             });
         } else if (state == BluetoothAdapter.STATE_OFF) {
-            openActivity(new Intent(this, SettingsShortcut.class).setAction(SettingsShortcut.ENABLE));
+            adapterControl.request(true);
         } else if (state == BluetoothAdapter.ERROR) error("Bluetooth adapter unavailable");
     }
     private void openActivity(Intent intent) {
@@ -253,13 +274,14 @@ public class FloatingBarService extends Service {
         if (status == null || source == null || playback == null || destroyed) return;
         int state = adapterState();
         boolean on = state == BluetoothAdapter.STATE_ON;
-        String bt = on ? "ON" : state == BluetoothAdapter.STATE_OFF ? "OFF" : "waiting";
+        boolean changing = disabling || (adapterControl != null && adapterControl.busy());
+        String bt = changing ? "waiting" : on ? "ON" : state == BluetoothAdapter.STATE_OFF ? "OFF" : "waiting";
         bluetoothButton.setText("BT " + bt);
-        bluetoothButton.setEnabled(!closing && !disabling && (on || state == BluetoothAdapter.STATE_OFF));
+        bluetoothButton.setEnabled(!closing && !changing && (on || state == BluetoothAdapter.STATE_OFF));
         bluetoothButton.setAlpha(bluetoothButton.isEnabled() ? 1f : .4f);
         sourceButton.setText(source.busy() ? "Source …" : source.current() < 0 ? "Source ?" : source.active() ? "Source ON" : "Source OFF");
         sourceButton.setTextColor(source.active() ? 0xFF87E5B0 : Color.WHITE);
-        sourceButton.setEnabled(!closing && !disabling && !source.busy() && source.current() >= 0 && (on || source.active()));
+        sourceButton.setEnabled(!closing && !changing && !source.busy() && source.current() >= 0 && (on || source.active()));
         sourceButton.setAlpha(sourceButton.isEnabled() ? 1f : .4f);
         play.setText(playback.playing() ? "Ⅱ" : "▶");
         enable(previous, PlaybackState.ACTION_SKIP_TO_PREVIOUS, on);
@@ -279,6 +301,7 @@ public class FloatingBarService extends Service {
     @Override public void onDestroy() {
         destroyed = true;
         main.removeCallbacksAndMessages(null);
+        if (adapterControl != null) adapterControl.cancel();
         if (receiverRegistered) unregisterReceiver(receiver);
         if (playback != null) playback.close();
         if (wire != null) wire.close();

@@ -30,8 +30,10 @@ def main():
         root = Path(temp)
         classes = root / 'checks'
         classes.mkdir()
-        compile_java([JAVA / 'SourceController.java', APP / 'tests/SourceControllerChecks.java'], classes)
+        compile_java([JAVA / 'SourceController.java', JAVA / 'AdapterController.java',
+                      APP / 'tests/SourceControllerChecks.java', APP / 'tests/AdapterControllerChecks.java'], classes)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.SourceControllerChecks'], check=True)
+        subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.AdapterControllerChecks'], check=True)
         if args.android_jar:
             generated = root / 'R.java'
             generated.write_text('package com.joying.bluetoothsettings; public final class R {'

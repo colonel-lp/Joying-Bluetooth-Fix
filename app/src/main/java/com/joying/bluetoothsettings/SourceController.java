@@ -69,7 +69,7 @@ final class SourceController {
             drainRelease();
         }, TIMEOUT_MS);
     }
-    /** Wait for an in-flight request, then restore only a source acquired by us. */
+    /** Wait for an in-flight request, then restore only a source acquired by this app. */
     void releaseOwned(Runnable complete) {
         if (releaseCompletion != null) {
             Runnable first = releaseCompletion;
