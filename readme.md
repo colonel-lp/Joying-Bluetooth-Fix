@@ -15,9 +15,15 @@ Enable native Android Bluetooth on Joying/FYT SC9853i head units and provide com
 ## Joying Bluetooth structure
 
 - Joying's original Bluetooth app controls a vendor Bluetooth stack/module.
-- The firmware also contains native Android Bluetooth, normally bypassed by vendor configuration.
+- Native discovery, RFCOMM data-connection handling and A2DP audio code remain in the firmware. FYT bypasses substantial existing Bluetooth code rather than removing it.
+- `bluetooth.mock_stack=1` selects **`bluetooth_test.default.so`**. Despite its name, this library contains substantial discovery, connection, audio-profile and radio-initialization code; it is not an empty mock. Native playback works without changing this property.
+- With a nonzero `sys.fyt.bluetooth_type` and `sys.fyt.systemobd` unset/false, FYT takes its external Bluetooth path: it skips native radio enablement and native profile startup. Its startup handler sends completion message **500** instead of the expected **3**, leaving the original enable sequence stuck at **`BLE_TURNING_ON`**.
+- In that external path, the paired-device list can come from **`/data/blink/bt_conf.ini`**. A listed phone therefore does not establish that Android's native radio started or connected.
+- **`sys.fyt.systemobd=1`** selects the native startup path without changing the Bluetooth module type. The Bluetooth process must reload the setting; reboot persistence is described below.
 - Native received audio uses Android alarm stream **4**. Joying's sound service selects Bluetooth Music source **3** and sets that stream to **7/7**; normal speaker volume remains under Joying control.
 - The native media session provides remote playback commands independently of the vendor app's buttons.
+
+These findings describe this firmware. Code presence does not establish that every profile/device works. The later off/on fault at **`BLE_ON`**, after enabling native mode, is separate from the original FYT startup bug above.
 
 ## Enable native Bluetooth with ADB
 
