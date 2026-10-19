@@ -279,7 +279,7 @@ public class FloatingBarService extends Service {
         bluetoothButton.setText("BT " + bt);
         bluetoothButton.setEnabled(!closing && !changing && (on || state == BluetoothAdapter.STATE_OFF));
         bluetoothButton.setAlpha(bluetoothButton.isEnabled() ? 1f : .4f);
-        sourceButton.setText(source.busy() ? "Source …" : source.current() < 0 ? "Source ?" : source.active() ? "Source ON" : "Source OFF");
+        sourceButton.setText(source.busy() ? "Audio …" : source.current() < 0 ? "Audio ?" : source.active() ? "Audio ON" : "Audio OFF");
         sourceButton.setTextColor(source.active() ? 0xFF87E5B0 : Color.WHITE);
         sourceButton.setEnabled(!closing && !changing && !source.busy() && source.current() >= 0 && (on || source.active()));
         sourceButton.setAlpha(sourceButton.isEnabled() ? 1f : .4f);
