@@ -33,11 +33,13 @@ def main():
         compile_java([JAVA / 'SourceController.java', JAVA / 'AdapterController.java',
                       APP / 'tests/SourceControllerChecks.java', APP / 'tests/AdapterControllerChecks.java',
                       JAVA / 'OverlayPresence.java', APP / 'tests/OverlayPresenceChecks.java',
-                      JAVA / 'AudioSession.java', APP / 'tests/AudioSessionChecks.java'], classes)
+                      JAVA / 'AudioSession.java', APP / 'tests/AudioSessionChecks.java',
+                      APP / 'tests/AudioRoutingChecks.java'], classes)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.SourceControllerChecks'], check=True)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.AdapterControllerChecks'], check=True)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.OverlayPresenceChecks'], check=True)
         subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.AudioSessionChecks'], check=True)
+        subprocess.run(['java', '-cp', str(classes), 'com.joying.bluetoothsettings.AudioRoutingChecks'], check=True)
         assert manifest.find("application/service[@{"+ns[1:-1]+"}name='.ControlLinkService']") is not None
         if args.android_jar:
             generated = root / 'R.java'

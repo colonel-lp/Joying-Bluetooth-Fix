@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.6 / code 7 — review, 19 October 2026
+
+- Review found that automatic ducking could bypass the listener while native audio belongs to the Bluetooth process. The focus request now opts into pause callbacks for ducking interruptions.
+- Production Java compiles against SDK 35; all 83 host scenarios pass, including 11 focus-API and 9 source/focus integration scenarios. No APK assembly or device run.
+- Focus API checks include the pause-on-duck flag and ducking-loss callback. Integration checks cover focus loss and close during pending source acquisition, denied focus, failed dispatch, route timeout, external source changes and explicit OFF on an existing route. Device acceptance remains pending.
+
 ## Bluetooth Controls 1.6 / code 7 — 19 October 2026
 
 - Production Java compiles against SDK 35 with Java 8 target/generated R. Host checks pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 focus-API and 15 launcher/native-playback scenarios. No APK assembly or device run.

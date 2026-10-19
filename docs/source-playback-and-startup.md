@@ -21,7 +21,7 @@ Received native audio uses alarm stream **4**, normally set to its maximum **7**
 
 ## Audio focus
 
-Audio ON requests permanent `AUDIOFOCUS_GAIN` with media/music attributes before selecting the source. A denied request leaves the source unchanged. This sends permanent focus loss to the earlier Android player, so abandoning focus does not invite it to resume. Audio ON does not send Play to the Bluetooth sender.
+Audio ON requests permanent `AUDIOFOCUS_GAIN` with media/music attributes before selecting the source. A denied request leaves the source unchanged. This sends permanent focus loss to the earlier Android player, so abandoning focus does not invite it to resume. Audio ON does not send Play to the Bluetooth sender. The focus request sets `setWillPauseWhenDucked(true)` so brief interruptions reach the pause handler; automatic ducking of this app cannot lower audio played by the separate Bluetooth process.
 
 Audio OFF pauses the native sender, falling back to Stop if Pause is unavailable, then abandons focus and restores the source. No Play command is sent to an earlier player. Source acquisition failure, an external source change, adapter shutdown, focus loss and closing also release app-held focus. Opening the bar or observing an already-selected Bluetooth source does not take focus; explicitly pressing Play on that source does.
 

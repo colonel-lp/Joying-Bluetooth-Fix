@@ -68,6 +68,7 @@ final class AudioFocusControl {
             return new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                     .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+                    .setWillPauseWhenDucked(true)
                     .setOnAudioFocusChangeListener(callback, main)
                     .build();
         }
