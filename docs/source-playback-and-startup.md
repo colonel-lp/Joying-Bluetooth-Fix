@@ -23,7 +23,7 @@ Received native audio uses alarm stream **4**, normally set to its maximum **7**
 
 Audio ON requests permanent `AUDIOFOCUS_GAIN` with media/music attributes before selecting the source. A denied request leaves the source unchanged. This sends permanent focus loss to the earlier Android player, so abandoning focus does not invite it to resume. Audio ON does not send Play to the Bluetooth sender. The focus request sets `setWillPauseWhenDucked(true)` so brief interruptions reach the pause handler; automatic ducking of this app cannot lower audio played by the separate Bluetooth process.
 
-Audio OFF pauses the native sender, falling back to Stop if Pause is unavailable, then abandons focus and restores the source. No Play command is sent to an earlier player. Source acquisition failure, an external source change, adapter shutdown, focus loss and closing also release app-held focus. Opening the bar or observing an already-selected Bluetooth source does not take focus; explicitly pressing Play on that source does.
+Audio OFF pauses the native sender, falling back to Stop if Pause is unavailable, then abandons focus and restores the source. No Play command is sent to an earlier player. Source acquisition failure, an external source change, adapter shutdown, focus loss and full service shutdown also release app-held focus. Hiding the floating window retains focus and leaves playback/source selection unchanged. Opening the bar or observing an already-selected Bluetooth source does not take focus; explicitly pressing Play on that source does.
 
 Android 8.1 focus is cooperative: a player that ignores focus loss can continue playing. No global media keys, active-session enumeration or force-stop permission is used. The firmware receiver builds a focus request without submitting it; the floating app supplies the request for its own audio selection.
 
@@ -53,9 +53,17 @@ Joying's `com.syu.ms.bt` module dispatches to its separate vendor driver. Those 
 
 On Android 8.1, declared `BLUETOOTH_ADMIN` permits direct `BluetoothAdapter.enable()`/`disable()` calls following a button press. The app already declares that normal permission. Routine enablement does not need Android's repeated confirmation dialog; the public confirmation remains a fallback if direct enablement throws a permission denial.
 
-Requests are asynchronous. The app waits for state confirmation, defers requests during transitions, allows one enable retry after three seconds in a stable off/BLE-only state, and reports an unconfirmed transition after twelve seconds. Timers are canceled on close. On older Android, `getLeState()` is attempted to distinguish BLE transition states hidden by the public OFF value; public state is used if that interface is unavailable.
+Requests are asynchronous. The app waits for state confirmation, defers requests during transitions, allows one enable retry after three seconds in a stable off/BLE-only state, and reports an unconfirmed transition after twelve seconds. Timers continue while the bar is hidden and are canceled when the service stops. On older Android, `getLeState()` is attempted to distinguish BLE transition states hidden by the public OFF value; public state is used if that interface is unavailable.
 
 The original settings toggle can remain off/BLE-only after shutdown. A later enable request has recovered it. The new app handling does not patch the underlying framework fault and still needs device confirmation after the change.
+
+## Window and notification lifetime
+
+The foreground service owns source, focus, media and adapter clients independently of the floating window. × and companion CLOSE detach only the window. Actual removal reports overlay presence OFF; reopening reuses the service and restores its window without changing audio or radio state.
+
+The ongoing notification shows confirmed BT/Audio states, transition or unknown labels, and **Show controls** / **Turn both off & exit** actions. Tap/Show uses the permission trampoline. Unchanged status is not reposted; updates are silent. Shutdown actions do not require an overlay grant and do not create a window.
+
+A hidden service stops when Bluetooth and Audio are confirmed off with no pending transitions. Explicit shutdown pauses the sender, abandons focus, restores the source and then disables Bluetooth, waiting for in-flight requests and readback. Rejected or unconfirmed shutdown keeps the notification and retry action. Hiding does not restart earlier players or release an active audio route. Boot launch is not included.
 
 ## Privilege limits
 

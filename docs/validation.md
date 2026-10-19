@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.7 / code 8 — 19 October 2026
+
+- Production Java compiles against SDK 35 with Java 8 target/generated R. Host checks pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 source/focus integration, 11 focus-API, 15 launcher/native-playback and 22 foreground-service scenarios. No APK assembly or device run.
+- Service checks exercise the production service with platform/transport stand-ins: silent ongoing status, hide/reopen, no audio changes on hide, pending transitions, companion CLOSE presence, hidden focus loss, confirmed exit, failed/late shutdown, permission-independent cold shutdown and notification update reuse.
+- Device acceptance: hide with BT ON/Audio OFF and with both ON; confirm playback/focus continue and notification states update. Restore via notification, launcher and EQ & DSP. Confirm one window and correct companion theming. Turn both off from the notification, including during pending source/adapter changes; confirm no earlier player resumes and notification disappears only after shutdown. Check BT changes from Android settings while hidden and retry after a rejected/unconfirmed shutdown.
+
 ## Bluetooth Controls 1.6 / code 7 — review, 19 October 2026
 
 - Review found that automatic ducking could bypass the listener while native audio belongs to the Bluetooth process. The focus request now opts into pause callbacks for ducking interruptions.
@@ -32,6 +38,7 @@ From the repository root, with Java 17 or newer and `jdk.compiler`:
 python3 app/tests/run_checks.py --android-jar /path/to/platforms/android-35/android.jar
 python3 app/tests/check_audio_focus.py
 python3 app/tests/check_flows.py
+python3 app/tests/check_service.py
 python3 scripts/persistence/test_installer.py
 ```
 
@@ -50,10 +57,10 @@ No APK is assembled as part of source-only checks.
 ## Device checks
 
 - Confirm the native-mode properties after boot, then pair/connect a sender.
-- Check source on/off, original-source restore and closing after another app changes the source.
+- Check Audio on/off and original-source restore. Hiding must retain active audio; explicit shutdown must respect a source subsequently chosen by another app.
 - Check play/pause, previous, next and Stop against the sender's player.
 - Cycle Bluetooth using the bar. Confirm no normal enable prompt, full ON state and source/playback recovery after shutdown.
-- Close during a pending request and reopen; check that old retries do not run.
+- Hide during a pending request and reopen; confirm the request continues once. Full shutdown must cancel old retries.
 - Verify overlay permission denial, dragging, saved position and reopening the existing bar.
 
 For a diagnostic capture on the Mac Desktop:

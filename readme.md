@@ -62,8 +62,8 @@ Full operation requires `enabled: true` and `state: ON`. If connected but silent
 
 ## App status
 
-**Bluetooth Controls v1.6** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio ON requests permanent media focus to pause other Android players. Audio OFF pauses the Bluetooth sender, releases focus and restores the previous source, or Android when no previous source is known. No previous player is restarted. Close releases a source acquired by the app and leaves the adapter enabled.
+**Bluetooth Controls v1.7** provides a draggable floating bar with remembered position, previous/play-pause/stop/next, Audio on/off, adapter on/off, Settings, status and close. Audio ON requests permanent media focus to pause other Android players. Audio OFF pauses the Bluetooth sender, releases focus and restores the previous source, or Android when no previous source is known. No previous player is restarted. × hides the bar without changing Bluetooth, playback or focus. A persistent notification shows BT/Audio states while either remains on; it can restore the controls or turn both off and exit. A hidden app exits when both are confirmed off.
 
-Receiving playback and the main floating controls are working on the target unit. The latest source adds audio-focus handling; its behavior needs device confirmation. Android 8.1 players must cooperate with audio-focus changes. Native-mode setup remains a prerequisite. The app does not write system properties, restart Bluetooth, switch audio roles or select a source automatically.
+Receiving playback and the main floating controls are working on the target unit. The latest source adds notification lifetime and confirmed shutdown handling; its behavior needs device confirmation. Android 8.1 players must cooperate with audio-focus changes. Native-mode setup remains a prerequisite. The app does not write system properties, restart Bluetooth, switch audio roles or select a source automatically.
 
 EQ & DSP integration: [overlay launch and status link](docs/eq-dsp-link.md).

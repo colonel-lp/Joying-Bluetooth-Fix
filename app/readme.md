@@ -1,6 +1,6 @@
 # Bluetooth Controls
 
-**v1.6 / code 7** · `com.joying.bluetoothsettings`
+**v1.7 / code 8** · `com.joying.bluetoothsettings`
 
 A draggable floating bar for native Bluetooth reception on Joying/FYT Android 8.1 head units. The [native-mode setup](../readme.md#enable-native-bluetooth-with-adb) is required first.
 
@@ -32,15 +32,15 @@ Allow **display over other apps** on first launch. Drag the status strip to move
 - **Audio:** ON takes permanent media focus and selects Bluetooth Music, pausing cooperating Android players. OFF pauses the native sender (or sends Stop if Pause is unavailable), releases focus and restores the previous source. If none was captured, it selects Android. Earlier players are not restarted.
 - **BT:** directly request adapter on/off using the declared Android 8.1 permission. State is confirmed before the transition finishes. One enable retry is allowed after three seconds in a stable off/BLE-only state; transitions are bounded to twelve seconds. A confirmation dialog is used only if direct enablement is denied.
 - **BT Settings:** open native Bluetooth settings.
-- **×:** close the bar and release a source acquired by the app. Bluetooth remains enabled.
+- **×:** hide the bar without changing Bluetooth, playback or focus. While BT or Audio is on, a persistent notification shows their states. Tap it or **Show controls** to restore the bar. **Turn both off & exit** pauses the native sender, releases focus, restores the source and disables Bluetooth, waiting for confirmation before exiting. A hidden app exits when both are confirmed off.
 
-EQ & DSP 1.77 can toggle the bar open/closed over its current screen and theme its shortcut from confirmed window presence; see the [companion link](../docs/eq-dsp-link.md). Its Audio button retains sole control of divert/release behaviour.
+EQ & DSP 1.77 can toggle the bar open/closed over its current screen and theme its shortcut from confirmed window presence; see the [companion link](../docs/eq-dsp-link.md). Audio selection remains explicit through the Audio button or notification shutdown action.
 
-Opening the icon again reuses the bar. Closing respects a source subsequently selected by another app. The return source is retained if restoration is not confirmed.
+Opening the icon again restores/reuses the bar. Hiding also updates the companion button to OFF. Failed shutdown keeps the notification available for retry; the return source is retained if restoration is not confirmed.
 
 ## Status and limitations
 
-The floating controls work with native receiving mode. Audio-focus handling awaits device confirmation. Android 8.1 relies on players respecting focus changes. The stock Bluetooth settings fault remains a firmware limitation.
+The floating controls work with native receiving mode. Notification lifetime and shutdown handling await device confirmation. Android 8.1 relies on players respecting focus changes. The stock Bluetooth settings fault remains a firmware limitation.
 
 No root access, system patch, property writer, audio-role switching, automatic device connection or boot launch is included. The overlay grant is separate from system privileges. Headphone-volume integration remains outside the current app.
 

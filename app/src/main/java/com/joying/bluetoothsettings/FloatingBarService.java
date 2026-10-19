@@ -36,6 +36,7 @@ import android.widget.Toast;
 
 public class FloatingBarService extends Service {
     static final String CLOSE = "com.joying.bluetoothsettings.CLOSE";
+    static final String EXIT = "com.joying.bluetoothsettings.EXIT";
     private final Handler main = new Handler(Looper.getMainLooper());
     private WindowManager windows;
     private WindowManager.LayoutParams layout;
@@ -50,7 +51,9 @@ public class FloatingBarService extends Service {
     private AudioFocusControl audioFocus;
     private AudioSession audioSession;
     private AdapterController adapterControl;
-    private boolean receiverRegistered, closing, destroyed, disabling;
+    private boolean receiverRegistered, closing, destroyed, disabling, attached, hidden, stopping;
+    private boolean exitRequested, exitSourceDone, exitAdapterRequested;
+    private String notificationText, shutdownError;
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             int state = adapterState();
@@ -69,9 +72,6 @@ public class FloatingBarService extends Service {
         super.onCreate();
         preferences = getSharedPreferences("floatingBar", MODE_PRIVATE);
         showNotification(); // Meet Android 8 foreground-service deadline immediately.
-        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
-            error("Allow Bluetooth Controls to display over other apps"); stopSelf(); return;
-        }
         adapter = BluetoothAdapter.getDefaultAdapter();
         source = new SourceController(new SourceController.Port() {
             @Override public boolean select(int value) { return wire != null && wire.select(value); }
@@ -126,7 +126,6 @@ public class FloatingBarService extends Service {
             }
         });
         try {
-            createBar();
             registerReceiver(receiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
             receiverRegistered = true;
             wire.connect();
@@ -139,27 +138,79 @@ public class FloatingBarService extends Service {
         }
     }
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && CLOSE.equals(intent.getAction())) closeBar();
-        else render();
+        if (intent != null && EXIT.equals(intent.getAction())) turnOffAndExit();
+        else if (intent != null && CLOSE.equals(intent.getAction())) closeBar();
+        else showBar();
         return START_NOT_STICKY;
     }
     @Override public IBinder onBind(Intent intent) { return null; }
 
     private void showNotification() {
+        int state = adapterFullState();
+        String bt = state == AdapterController.ON ? "ON"
+                : state == AdapterController.OFF || state == AdapterController.BLE_ON ? "OFF"
+                : state == BluetoothAdapter.ERROR ? "?" : "waiting";
+        if (disabling || (adapterControl != null && adapterControl.busy())) bt = "waiting";
+        String audio = source == null ? "?" : source.busy() ? "waiting"
+                : (source.active() || (audioSession != null && audioSession.requested())) ? "ON"
+                : source.current() < 0 ? "?" : "OFF";
+        String text = "BT " + bt + " · Audio " + audio;
+        if (exitRequested) text = "Turning both off · " + text;
+        else if (shutdownError != null) text = shutdownError + " · " + text;
+        if (text.equals(notificationText)) return;
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= 26) {
-            manager.createNotificationChannel(new NotificationChannel("controls", "Floating Bluetooth controls", NotificationManager.IMPORTANCE_LOW));
+            manager.createNotificationChannel(new NotificationChannel("controls", "Bluetooth controls", NotificationManager.IMPORTANCE_LOW));
             builder = new Notification.Builder(this, "controls");
         } else builder = new Notification.Builder(this);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, SettingsShortcut.class), flags);
-        PendingIntent close = PendingIntent.getService(this, 1, new Intent(this, FloatingBarService.class).setAction(CLOSE), flags);
-        startForeground(12, builder.setSmallIcon(com.joying.bluetoothsettings.R.drawable.bluetooth_icon)
-                .setContentTitle("Bluetooth Controls").setContentText("Floating controls are running")
-                .setOngoing(true).setContentIntent(open)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Close", close).build());
+        PendingIntent exit = PendingIntent.getService(this, 2, new Intent(this, FloatingBarService.class).setAction(EXIT), flags);
+        Notification notification = builder.setSmallIcon(com.joying.bluetoothsettings.R.drawable.bluetooth_icon)
+                .setContentTitle("Bluetooth Controls").setContentText(text)
+                .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false).setPriority(Notification.PRIORITY_LOW)
+                .setContentIntent(open)
+                .addAction(android.R.drawable.ic_menu_view, "Show controls", open)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Turn both off & exit", exit).build();
+        if (notificationText == null) startForeground(12, notification);
+        else manager.notify(12, notification);
+        notificationText = text;
+    }
+    private void showBar() {
+        if (destroyed || stopping) return;
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            error("Allow Bluetooth Controls to display over other apps");
+            hidden = true; render(); return;
+        }
+        try {
+            hidden = false;
+            if (bar == null) createBar();
+            else attachBar();
+        } catch (RuntimeException failure) {
+            Log.e("JoyingBluetooth", "Floating bar unavailable", failure);
+            error("Floating bar unavailable; check display-over-other-apps permission");
+            hidden = true;
+        }
+        render();
+    }
+    private void attachBar() {
+        if (attached) return;
+        windows.addView(bar, layout);
+        attached = true;
+        OverlayPresence.INSTANCE.attached(this::closeBar);
+    }
+    private boolean hideBar() {
+        if (!attached) return true;
+        try { windows.removeViewImmediate(bar); }
+        catch (RuntimeException failure) {
+            Log.w("JoyingBluetooth", "Floating bar removal failed", failure);
+            error("Floating controls could not be hidden"); return false;
+        }
+        attached = false;
+        OverlayPresence.INSTANCE.set(false);
+        return true;
     }
     private void createBar() {
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
@@ -184,7 +235,9 @@ public class FloatingBarService extends Service {
         sourceButton = button(row, "Audio ?", 1.9f, this::toggleAudio);
         bluetoothButton = button(row, "BT ?", 1.6f, this::toggleBluetooth);
         button(row, "BT Settings", 2.1f, () -> openActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
-        button(row, "×", .8f, this::closeBar).setContentDescription("Close floating controls and release the source selected by this app");
+        Button close = button(row, "×", .8f, this::closeBar);
+        close.setContentDescription("Hide floating controls; exit when Bluetooth and Audio are off");
+        close.setOnClickListener(v -> closeBar());
         previous.setContentDescription("Previous track"); play.setContentDescription("Play or pause remote music");
         stop.setContentDescription("Stop remote music, when supported by sender"); next.setContentDescription("Next track");
         sourceButton.setContentDescription("Toggle Joying Bluetooth audio source");
@@ -219,8 +272,7 @@ public class FloatingBarService extends Service {
                 return false;
             }
         });
-        windows.addView(bar, layout);
-        OverlayPresence.INSTANCE.attached(this::closeBar);
+        attachBar();
     }
     private Button button(LinearLayout row, String label, float weight, Runnable action) {
         Button button = new Button(this);
@@ -244,7 +296,7 @@ public class FloatingBarService extends Service {
     }
     private void updatePosition() {
         clampPosition();
-        try { windows.updateViewLayout(bar, layout); } catch (RuntimeException ignored) {}
+        if (attached) try { windows.updateViewLayout(bar, layout); } catch (RuntimeException ignored) {}
     }
     @Override public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
@@ -297,14 +349,59 @@ public class FloatingBarService extends Service {
         catch (RuntimeException failure) { error("Requested Android screen is unavailable"); }
     }
     private void closeBar() {
-        if (closing) return;
-        closing = true; render();
-        if (audioSession != null) audioSession.close();
-        if (source == null) stopSelf();
-        else source.releaseOwned(this::stopSelf);
+        if (destroyed || stopping || !hideBar()) return;
+        hidden = true;
+        render();
+    }
+    private boolean bothOff() {
+        int state = adapterFullState();
+        return adapter != null && (state == AdapterController.OFF || state == AdapterController.BLE_ON)
+                && source != null && source.current() >= 0 && !source.active() && !source.busy()
+                && audioSession != null && !audioSession.requested()
+                && adapterControl != null && !adapterControl.busy() && !disabling;
+    }
+    private void turnOffAndExit() {
+        if (destroyed || stopping || exitRequested) return;
+        if (!attached) hidden = true;
+        exitRequested = closing = true;
+        exitSourceDone = exitAdapterRequested = false;
+        shutdownError = null;
+        audioSession.stop();
+        source.releaseActive(() -> {
+            if (destroyed || stopping) return;
+            exitSourceDone = true;
+            render();
+        });
+        render();
+    }
+    private void advanceExit() {
+        if (!exitRequested || !exitSourceDone || source.busy() || adapterControl.busy() || disabling) return;
+        if (!exitAdapterRequested) {
+            exitAdapterRequested = true;
+            adapterControl.request(false);
+            return;
+        }
+        if (bothOff()) finishService();
+        else {
+            exitRequested = closing = false;
+            shutdownError = "Shutdown not confirmed";
+            error("Bluetooth or Audio is still on or unavailable; use Show controls to retry");
+            showNotification();
+        }
+    }
+    private void finishService() {
+        if (stopping) return;
+        stopping = closing = true;
+        audioSession.close();
+        stopSelf();
     }
     private void render() {
-        if (status == null || source == null || playback == null || destroyed) return;
+        if (source == null || playback == null || destroyed || stopping) return;
+        if (bothOff()) shutdownError = null;
+        showNotification();
+        if (hidden && !exitRequested && bothOff()) { finishService(); return; }
+        advanceExit();
+        if (status == null || stopping) return;
         int state = adapterState();
         boolean on = state == BluetoothAdapter.STATE_ON;
         boolean changing = disabling || (adapterControl != null && adapterControl.busy());
@@ -322,7 +419,7 @@ public class FloatingBarService extends Service {
         enable(play, playback.playing() ? PlaybackState.ACTION_PAUSE : PlaybackState.ACTION_PLAY, on);
         enable(stop, PlaybackState.ACTION_STOP, on);
         enable(next, PlaybackState.ACTION_SKIP_TO_NEXT, on);
-        status.setText(closing ? "Closing · restoring previous source…" : "⋮⋮  Bluetooth " + bt + " · " + playback.summary());
+        status.setText(closing ? "Turning Bluetooth and Audio off…" : "⋮⋮  Bluetooth " + bt + " · " + playback.summary());
     }
     private void enable(Button button, long action, boolean on) {
         button.setEnabled(!closing && on && playback.supports(action));
@@ -340,7 +437,8 @@ public class FloatingBarService extends Service {
         if (receiverRegistered) unregisterReceiver(receiver);
         if (playback != null) playback.close();
         if (wire != null) wire.close();
-        if (bar != null && windows != null) { try { windows.removeView(bar); } catch (RuntimeException ignored) {} }
+        if (attached && windows != null) { try { windows.removeViewImmediate(bar); } catch (RuntimeException ignored) {} }
+        attached = false;
         OverlayPresence.INSTANCE.set(false);
         stopForeground(true);
         super.onDestroy();
