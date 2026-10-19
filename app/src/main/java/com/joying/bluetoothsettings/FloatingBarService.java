@@ -169,7 +169,7 @@ public class FloatingBarService extends Service {
             else source.toggle();
         });
         bluetoothButton = button(row, "BT ?", 1.6f, this::toggleBluetooth);
-        button(row, "BT Settings", 1.6f, () -> openActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
+        button(row, "BT Settings", 2.1f, () -> openActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
         button(row, "×", .8f, this::closeBar).setContentDescription("Close floating controls and release the source selected by this app");
         previous.setContentDescription("Previous track"); play.setContentDescription("Play or pause remote music");
         stop.setContentDescription("Stop remote music, when supported by sender"); next.setContentDescription("Next track");
@@ -277,6 +277,7 @@ public class FloatingBarService extends Service {
         boolean changing = disabling || (adapterControl != null && adapterControl.busy());
         String bt = changing ? "waiting" : on ? "ON" : state == BluetoothAdapter.STATE_OFF ? "OFF" : "waiting";
         bluetoothButton.setText("BT " + bt);
+        bluetoothButton.setTextColor(on ? 0xFF87E5B0 : Color.WHITE);
         bluetoothButton.setEnabled(!closing && !changing && (on || state == BluetoothAdapter.STATE_OFF));
         bluetoothButton.setAlpha(bluetoothButton.isEnabled() ? 1f : .4f);
         sourceButton.setText(source.busy() ? "Audio …" : source.current() < 0 ? "Audio ?" : source.active() ? "Audio ON" : "Audio OFF");
