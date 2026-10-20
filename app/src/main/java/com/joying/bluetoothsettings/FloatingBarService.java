@@ -32,12 +32,24 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.RemoteViews;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class FloatingBarService extends Service {
     static final String CLOSE = "com.joying.bluetoothsettings.CLOSE";
     static final String EXIT = "com.joying.bluetoothsettings.EXIT";
+    static final String PREVIOUS = "com.joying.bluetoothsettings.PREVIOUS";
+    static final String PLAY_PAUSE = "com.joying.bluetoothsettings.PLAY_PAUSE";
+    static final String STOP = "com.joying.bluetoothsettings.STOP";
+    static final String NEXT = "com.joying.bluetoothsettings.NEXT";
+    static final String AUDIO = "com.joying.bluetoothsettings.AUDIO";
+    static final String BLUETOOTH = "com.joying.bluetoothsettings.BLUETOOTH";
+    static final String SETTINGS = "com.joying.bluetoothsettings.SETTINGS";
+    private static final String[] NOTIFICATION_ACTIONS = {PREVIOUS, PLAY_PAUSE, STOP, NEXT, AUDIO, BLUETOOTH, SETTINGS, EXIT};
+    private static final int[] NOTIFICATION_BUTTONS = {R.id.notification_previous, R.id.notification_play,
+            R.id.notification_stop, R.id.notification_next, R.id.notification_audio, R.id.notification_bluetooth,
+            R.id.notification_settings, R.id.notification_exit};
     private final Handler main = new Handler(Looper.getMainLooper());
     private WindowManager windows;
     private WindowManager.LayoutParams layout;
@@ -56,7 +68,7 @@ public class FloatingBarService extends Service {
     private AdapterController adapterControl;
     private boolean receiverRegistered, closing, destroyed, disabling, attached, hidden, stopping;
     private boolean exitRequested, exitSourceDone, exitAdapterRequested;
-    private String notificationText, shutdownError;
+    private String notificationKey, shutdownError;
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             int state = adapterState();
@@ -146,7 +158,21 @@ public class FloatingBarService extends Service {
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && EXIT.equals(intent.getAction())) turnOffAndExit();
         else if (intent != null && CLOSE.equals(intent.getAction())) closeBar();
-        else showBar();
+        else if (intent != null && notificationAction(intent.getAction())) {
+            if (!attached) hidden = true;
+            if (canControl(intent.getAction())) {
+                switch (intent.getAction()) {
+                    case PREVIOUS: playback.send(PlaybackState.ACTION_SKIP_TO_PREVIOUS); break;
+                    case PLAY_PAUSE: playOrPause(); break;
+                    case STOP: playback.send(PlaybackState.ACTION_STOP); break;
+                    case NEXT: playback.send(PlaybackState.ACTION_SKIP_TO_NEXT); break;
+                    case AUDIO: toggleAudio(); break;
+                    case BLUETOOTH: toggleBluetooth(); break;
+                    case SETTINGS: toggleSettings(); break;
+                }
+            }
+            render();
+        } else showBar();
         return START_NOT_STICKY;
     }
     @Override public IBinder onBind(Intent intent) { return null; }
@@ -163,7 +189,15 @@ public class FloatingBarService extends Service {
         String text = "BT " + bt + " · Audio " + audio;
         if (exitRequested) text = "Turning both off · " + text;
         else if (shutdownError != null) text = shutdownError + " · " + text;
-        if (text.equals(notificationText)) return;
+        String sender = receiverDevice == null ? "" : receiverDevice.name();
+        String summary = playback == null ? "" : playback.summary();
+        boolean playing = playback != null && playback.playing();
+        boolean audioOn = source != null && source.active();
+        boolean btOn = adapterState() == BluetoothAdapter.STATE_ON;
+        String key = text + "\n" + sender + "\n" + summary + "\n" + playing + audioOn + btOn
+                + SettingsWindow.INSTANCE.open();
+        for (String action : NOTIFICATION_ACTIONS) key += ":" + canControl(action);
+        if (key.equals(notificationKey)) return;
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= 26) {
@@ -173,17 +207,62 @@ public class FloatingBarService extends Service {
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, SettingsShortcut.class), flags);
-        PendingIntent exit = PendingIntent.getService(this, 2, new Intent(this, FloatingBarService.class).setAction(EXIT), flags);
-        Notification notification = builder.setSmallIcon(com.joying.bluetoothsettings.R.drawable.bluetooth_icon)
-                .setContentTitle("Bluetooth Controls").setContentText(text)
+        RemoteViews controls = new RemoteViews(getPackageName(), R.layout.notification_controls);
+        String detail = text + (sender.isEmpty() ? "" : " · " + sender) + (summary.isEmpty() ? "" : " · " + summary);
+        controls.setTextViewText(R.id.notification_status, detail);
+        controls.setOnClickPendingIntent(R.id.notification_status, open);
+        String[] labels = {"|◀", playing ? "Ⅱ" : "▶", "■", "▶|", "Audio " + audio, "BT " + bt, "BT settings", "×"};
+        String[] descriptions = {"Previous track", playing ? "Pause remote music" : "Play remote music",
+                "Stop remote music", "Next track", "Toggle Bluetooth audio source: " + audio,
+                "Toggle Android Bluetooth: " + bt, "Open or close BT settings", "Turn Bluetooth and Audio off and exit"};
+        for (int i = 0; i < NOTIFICATION_ACTIONS.length; i++) {
+            String action = NOTIFICATION_ACTIONS[i];
+            int id = NOTIFICATION_BUTTONS[i];
+            boolean enabled = canControl(action);
+            boolean active = AUDIO.equals(action) ? audioOn : BLUETOOTH.equals(action) ? btOn
+                    : SETTINGS.equals(action) && SettingsWindow.INSTANCE.open();
+            controls.setTextViewText(id, labels[i]);
+            controls.setTextColor(id, active ? 0xFF87E5B0 : enabled ? Color.WHITE : 0xFF8C96A4);
+            controls.setBoolean(id, "setEnabled", enabled);
+            controls.setContentDescription(id, descriptions[i]);
+            controls.setOnClickPendingIntent(id, PendingIntent.getService(this, 20 + i,
+                    new Intent(this, FloatingBarService.class).setAction(action), flags));
+        }
+        builder.setSmallIcon(R.drawable.bluetooth_icon).setContentText(text)
                 .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false).setPriority(Notification.PRIORITY_LOW)
-                .setContentIntent(open)
-                .addAction(android.R.drawable.ic_menu_view, "Show controls", open)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Turn both off & exit", exit).build();
-        if (notificationText == null) startForeground(12, notification);
+                .setContentIntent(open);
+        if (Build.VERSION.SDK_INT >= 24) {
+            builder.setStyle(new Notification.DecoratedCustomViewStyle())
+                    .setCustomContentView(controls).setCustomBigContentView(controls);
+        } else builder.setContent(controls);
+        Notification notification = builder.build();
+        if (notificationKey == null) startForeground(12, notification);
         else manager.notify(12, notification);
-        notificationText = text;
+        notificationKey = key;
     }
+    private boolean notificationAction(String action) {
+        for (String candidate : NOTIFICATION_ACTIONS) if (candidate.equals(action)) return true;
+        return false;
+    }
+    private boolean canControl(String action) {
+        if (destroyed || stopping || closing) return false;
+        if (EXIT.equals(action)) return true;
+        if (source == null || playback == null || audioSession == null || adapterControl == null) return false;
+        int state = adapterState();
+        boolean on = state == BluetoothAdapter.STATE_ON;
+        boolean changing = disabling || adapterControl.busy();
+        switch (action) {
+            case BLUETOOTH: return !changing && (on || state == BluetoothAdapter.STATE_OFF);
+            case AUDIO: return !changing && !source.busy() && source.current() >= 0 && (on || source.active());
+            case SETTINGS: return !SettingsWindow.INSTANCE.busy();
+            case PREVIOUS: return on && playback.supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS);
+            case PLAY_PAUSE: return on && playback.supports(playback.playing() ? PlaybackState.ACTION_PAUSE : PlaybackState.ACTION_PLAY);
+            case STOP: return on && playback.supports(PlaybackState.ACTION_STOP);
+            case NEXT: return on && playback.supports(PlaybackState.ACTION_SKIP_TO_NEXT);
+            default: return false;
+        }
+    }
+
     private void showBar() {
         if (destroyed || stopping) return;
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
@@ -426,7 +505,7 @@ public class FloatingBarService extends Service {
         else {
             exitRequested = closing = false;
             shutdownError = "Shutdown not confirmed";
-            error("Bluetooth or Audio is still on or unavailable; use Show controls to retry");
+            error("Bluetooth or Audio is still on or unavailable; press notification × to retry");
             showNotification();
         }
     }
@@ -449,25 +528,25 @@ public class FloatingBarService extends Service {
         String bt = changing ? "waiting" : on ? "ON" : state == BluetoothAdapter.STATE_OFF ? "OFF" : "waiting";
         bluetoothButton.setText("BT " + bt);
         bluetoothButton.setTextColor(on ? 0xFF87E5B0 : Color.WHITE);
-        bluetoothButton.setEnabled(!closing && !changing && (on || state == BluetoothAdapter.STATE_OFF));
+        bluetoothButton.setEnabled(canControl(BLUETOOTH));
         bluetoothButton.setAlpha(bluetoothButton.isEnabled() ? 1f : .4f);
         sourceButton.setText(source.busy() ? "Audio …" : source.current() < 0 ? "Audio ?" : source.active() ? "Audio ON" : "Audio OFF");
         sourceButton.setTextColor(source.active() ? 0xFF87E5B0 : Color.WHITE);
-        sourceButton.setEnabled(!closing && !changing && !source.busy() && source.current() >= 0 && (on || source.active()));
+        sourceButton.setEnabled(canControl(AUDIO));
         sourceButton.setAlpha(sourceButton.isEnabled() ? 1f : .4f);
         settingsButton.setTextColor(SettingsWindow.INSTANCE.open() ? 0xFF87E5B0 : Color.WHITE);
-        settingsButton.setEnabled(!closing && !SettingsWindow.INSTANCE.busy());
+        settingsButton.setEnabled(canControl(SETTINGS));
         settingsButton.setAlpha(settingsButton.isEnabled() ? 1f : .4f);
         play.setText(playback.playing() ? "Ⅱ" : "▶");
-        enable(previous, PlaybackState.ACTION_SKIP_TO_PREVIOUS, on);
-        enable(play, playback.playing() ? PlaybackState.ACTION_PAUSE : PlaybackState.ACTION_PLAY, on);
-        enable(stop, PlaybackState.ACTION_STOP, on);
-        enable(next, PlaybackState.ACTION_SKIP_TO_NEXT, on);
+        enable(previous, PREVIOUS);
+        enable(play, PLAY_PAUSE);
+        enable(stop, STOP);
+        enable(next, NEXT);
         status.setText(closing ? "Turning Bluetooth and Audio off…" : "⋮⋮  Bluetooth " + bt + (receiverDevice == null || receiverDevice.name().isEmpty()
                 ? "" : " · " + receiverDevice.name()) + " · " + playback.summary());
     }
-    private void enable(Button button, long action, boolean on) {
-        button.setEnabled(!closing && on && playback.supports(action));
+    private void enable(Button button, String action) {
+        button.setEnabled(canControl(action));
         button.setAlpha(button.isEnabled() ? 1f : .35f);
     }
     private void error(String text) {

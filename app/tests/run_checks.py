@@ -14,6 +14,24 @@ def compile_java(files, output, classpath=None):
         command += ['-classpath', str(classpath)]
     subprocess.run(command + [str(p) for p in files], check=True)
 
+def resource_stub():
+    resources = {'drawable': set(), 'layout': set(), 'id': set()}
+    for kind in ('drawable', 'layout'):
+        resources[kind].update(p.stem for p in (APP / 'src/main/res' / kind).glob('*.xml'))
+    for path in (APP / 'src/main/res').rglob('*.xml'):
+        for element in ET.parse(path).iter():
+            for value in element.attrib.values():
+                if value.startswith('@+id/'):
+                    resources['id'].add(value[5:])
+    result = 'package com.joying.bluetoothsettings; public final class R {'
+    for kind, names in resources.items():
+        result += 'public static final class ' + kind + ' {'
+        for number, name in enumerate(sorted(names), 1):
+            result += 'public static final int ' + name + '=' + str(number) + ';'
+        result += '}'
+    return result + '}'
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--android-jar', type=Path)
@@ -47,8 +65,7 @@ def main():
         assert manifest.find("application/service[@{"+ns[1:-1]+"}name='.ControlLinkService']") is not None
         if args.android_jar:
             generated = root / 'R.java'
-            generated.write_text('package com.joying.bluetoothsettings; public final class R {'
-                                 'public static final class drawable { public static final int bluetooth_icon=1; }}')
+            generated.write_text(resource_stub())
             all_classes = root / 'android-classes'
             all_classes.mkdir()
             compile_java([*JAVA.glob('*.java'), generated], all_classes, args.android_jar)

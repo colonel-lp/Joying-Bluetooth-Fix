@@ -61,7 +61,9 @@ The original settings toggle can remain off/BLE-only after shutdown. A later ena
 
 The foreground service owns source, focus, media and adapter clients independently of the floating window. × and companion CLOSE detach only the window. Actual removal reports overlay presence OFF; reopening reuses the service and restores its window without changing audio or radio state.
 
-The ongoing notification shows confirmed BT/Audio states, transition or unknown labels, and **Show controls** / **Turn both off & exit** actions. Tap/Show uses the permission trampoline. Unchanged status is not reposted; updates are silent. Shutdown actions do not require an overlay grant and do not create a window.
+The ongoing notification uses a 56 dp custom RemoteViews layout for both collapsed and expanded content: a status line and a control row containing previous, play/pause, Stop, next, Audio, BT, BT Settings and ×. Android 7+ decorates it with the system app header; no duplicate content title or standard action buttons are added. Older Android uses the custom-content fallback. Status/body taps use the permission trampoline to reopen the bar.
+
+Each button has a distinct immutable explicit service PendingIntent on Android 6+. Service delivery rechecks the same enabled-state rules used by the floating bar, so stale buttons cannot bypass transition or capability checks. Button actions do not create a floating window or require an overlay grant. BT Settings opens/closes the owned settings task; notification × invokes confirmed shutdown. Playback state, capabilities, sender, source and settings state participate in the notification update key; unchanged content is not reposted and updates are silent.
 
 A hidden service stops when Bluetooth and Audio are confirmed off with no pending transitions. Explicit shutdown pauses the sender, abandons focus, restores the source and then disables Bluetooth, waiting for in-flight requests and readback. Rejected or unconfirmed shutdown keeps the notification and retry action. Hiding does not restart earlier players or release an active audio route. Boot launch is not included.
 

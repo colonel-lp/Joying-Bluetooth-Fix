@@ -10,8 +10,8 @@ android {
         applicationId 'com.joying.bluetoothsettings'
         minSdk 21
         targetSdk 27
-        versionCode 9
-        versionName '1.8'
+        versionCode 10
+        versionName '1.9'
     }
 
     buildTypes {

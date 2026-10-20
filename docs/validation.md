@@ -1,5 +1,12 @@
 # Validation
 
+## Bluetooth Controls 1.9 / code 10 — 20 October 2026
+
+- AAPT2 compiled and linked the notification XML/styles against the available Android framework resources. Production Java compiles with the resulting R class against SDK 35, targeting Java 8. This was a resource/source check; no app APK was assembled.
+- All 139 host scenarios pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 source/focus integration, 11 focus-API, 15 launcher/native-playback, 35 foreground-service, 11 settings-window and 10 receiver-name scenarios.
+- Notification checks cover all eight buttons, no duplicate title/old actions, compact/expanded content, silent state/capability/sender updates, active highlights, stale-click rejection, permission-independent transport/audio commands, settings-task toggle, shutdown/retry, visible-window exit and cold delivery with both off. Floating hide/companion behavior remains covered.
+- Device acceptance: inspect the compact and expanded notification at the unit's display scale; confirm labels fit, eight buttons respond, and only the system app-name header remains. Exercise every control with the bar hidden, settings open/closed, playback changes and BT transitions. Verify notification × pauses BT, releases focus without resuming an earlier player, disables BT and removes the app after confirmation; verify floating × still only hides it. RemoteViews inflation and touch behavior require the head unit.
+
 ## Generic persistence package — 20 October 2026
 
 - The owner confirmed the original SC9853i boot script works. The generic package is separate and has not been run on another head unit.
