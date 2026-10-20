@@ -7,3 +7,4 @@
 - Keep native Android playback separate from Joying's vendor Bluetooth commands. Confirm source changes through readback and preserve source ownership on restore/close.
 - Distinguish observed device behavior, source checks and unverified changes. Preserve unrelated files when publishing.
 - App versions advance by .01 with two digits after the dot: 1.10, 1.11, 1.12. Increment versionCode for each release. Android Studio APK outputs must use `Bluetooth-Controls-v${variant.versionName}.apk` for every build type.
+- Keep the notification simple: Show controls and Turn both off & exit. Persist only with the bar hidden and BT ON; reopening removes the notification. Closing with BT OFF releases audio and exits.

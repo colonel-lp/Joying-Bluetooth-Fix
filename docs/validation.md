@@ -1,5 +1,12 @@
 # Validation
 
+## Bluetooth Controls 1.11 / code 12 — 20 October 2026
+
+- Restored the pre-custom-button notification and removed its three custom resource files. APK naming remains `Bluetooth-Controls-v1.11.apk` for this release; the .01 version policy is unchanged.
+- Production Java compiles against SDK 35 with Java 8 target/generated R. All 134 host scenarios pass, including 30 foreground-service scenarios. The settings check passed when rerun with JVM performance-data sharing disabled after a host JVM crash during parallel execution. No app APK was assembled.
+- Service checks cover no persistent notification with the bar visible, promotion on hide with BT ON, demotion/removal on reopen, original notification actions, focus/route retention, close with BT OFF and active/unknown Audio, bounded source cleanup, saved return source after failed readback, adapter-transition shutdown, companion presence and permission-independent explicit exit.
+- Device acceptance: verify hidden BT ON retains audio and shows the simple notification; reopen through launcher, notification and EQ & DSP and confirm notification removal without audio interruption. Leave the visible overlay running with BT both on and off to check firmware service lifetime. Close with BT OFF, Audio still selected and during enable/disable; confirm focus releases and the app/notification exit after cleanup. A brief Android foreground-service startup notification is possible.
+
 ## Bluetooth Controls 1.10 / code 11 — 20 October 2026
 
 - Notification buttons now share the same width weight and 36 dp height; labels may wrap to two lines. Resource compile/link and the 35 existing foreground-service scenarios pass, including the v1.10 title label. No app APK was assembled.

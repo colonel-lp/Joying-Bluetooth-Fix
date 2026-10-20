@@ -22,7 +22,7 @@ Every message uses `arg1=1`. Client requests carry `replyTo`; the companion keys
 - The controller does not mark ON optimistically. Opening/closing has an eight-second confirmation timeout; missing/older companions report an update/install requirement.
 - If the overlay grant is missing, the controller opens the companion's existing permission trampoline following the user's tap. This recovery may temporarily leave the underlying screen; the granted launch does not. No source is selected as part of permission recovery.
 - Protocol 1 remains compatible with the earlier 1.76 controller for opening/status. Remote close requires the updated 1.5 companion; version 1.4 ignores CLOSE.
-- Normal hide reports OFF when the window is removed. The notification may remain while BT or Audio is on; protocol STATE reports window presence, not radio or service lifetime. If the companion process stops abruptly, the controller detects Binder disconnection; a fresh process starts with absent presence.
+- Normal hide reports OFF when the window is removed. The notification remains only while the bar is hidden and BT is ON; protocol STATE reports window presence, not radio or service lifetime. If the companion process stops abruptly, the controller detects Binder disconnection; a fresh process starts with absent presence.
 - This protocol controls window launch/status only. Radio state and Bluetooth Audio ON/OFF are separate controls.
 
 Build and install both app sources with their respective existing signing keys. No system/service audio patch is required for this link. Source/host checks and remaining device checks are in [validation](validation.md).
