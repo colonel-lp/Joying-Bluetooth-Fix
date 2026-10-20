@@ -1,5 +1,11 @@
 # Validation
 
+## Bluetooth Controls 1.10 / code 11 — 20 October 2026
+
+- Notification buttons now share the same width weight and 36 dp height; labels may wrap to two lines. Resource compile/link and the 35 existing foreground-service scenarios pass, including the v1.10 title label. No app APK was assembled.
+- Gradle names every variant output `Bluetooth-Controls-v${variant.versionName}.apk`; this release resolves to `Bluetooth-Controls-v1.10.apk`. APK generation in Android Studio remains a local build step.
+- Device acceptance: confirm equal button widths, smaller height and readable Audio/BT Settings labels in collapsed and expanded notifications. Confirm the Android Studio output filename.
+
 ## Bluetooth Controls 1.9 / code 10 — 20 October 2026
 
 - AAPT2 compiled and linked the notification XML/styles against the available Android framework resources. Production Java compiles with the resulting R class against SDK 35, targeting Java 8. This was a resource/source check; no app APK was assembled.

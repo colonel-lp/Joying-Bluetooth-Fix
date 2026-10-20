@@ -6,3 +6,4 @@
 - Preserve the Java 25 build setup and Android 8.1 compatibility. Change SDK targets only when required by the task.
 - Keep native Android playback separate from Joying's vendor Bluetooth commands. Confirm source changes through readback and preserve source ownership on restore/close.
 - Distinguish observed device behavior, source checks and unverified changes. Preserve unrelated files when publishing.
+- App versions advance by .01 with two digits after the dot: 1.10, 1.11, 1.12. Increment versionCode for each release. Android Studio APK outputs must use `Bluetooth-Controls-v${variant.versionName}.apk` for every build type.

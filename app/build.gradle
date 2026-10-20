@@ -10,8 +10,8 @@ android {
         applicationId 'com.joying.bluetoothsettings'
         minSdk 21
         targetSdk 27
-        versionCode 10
-        versionName '1.9'
+        versionCode 11
+        versionName '1.10'
     }
 
     buildTypes {
@@ -33,6 +33,6 @@ android {
 
 android.applicationVariants.all { variant ->
     variant.outputs.all {
-        outputFileName = "BluetoothControls-${variant.name}.apk"
+        outputFileName = "Bluetooth-Controls-v${variant.versionName}.apk"
     }
 }
