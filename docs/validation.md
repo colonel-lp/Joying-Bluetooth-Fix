@@ -1,5 +1,11 @@
 # Validation
 
+## Generic persistence package — 20 October 2026
+
+- The owner confirmed the original SC9853i boot script works. The generic package is separate and has not been run on another head unit.
+- Eight generic host tests and the existing nine device-specific installer tests pass. Generic coverage includes other model/SDK values, read-only checks and absent config, exact restore/idempotence, serial-based backup separation, duplicate keys, CRLF/missing final newline, ownership/mode retention, corrupt backups, later owner edits, unsafe targets, live Android refusal, rollback and all three single-line updater launchers.
+- Run `python3 scripts/persistence/generic/test_installer.py`. Before device acceptance, run Check, then Install offline; after a full reboot verify `sys.fyt.systemobd=1`, full adapter ON, discovery/pairing and the required profiles. Run Restore offline and confirm the original setting after boot. A config write does not prove the firmware implements the override or retains the native stack.
+
 ## Bluetooth Controls 1.8 / code 9 — 19 October 2026
 
 - Production Java compiles against SDK 35 with Java 8 target/generated R. Host checks pass: 14 source-routing, 13 adapter-state, 10 overlay-presence, 11 audio-session, 9 source/focus integration, 11 focus-API, 15 launcher/native-playback, 25 foreground-service, 11 settings-window and 10 receiver-name scenarios. No APK assembly or device run.
@@ -57,7 +63,7 @@ The SDK argument compiles production Java against Android SDK classes with a gen
 - v1.2: production Java compiled against SDK 35; 14 source-routing and 12 launcher/media scenarios passed.
 - Java 25 configuration: official Gradle compatibility and distribution checksum checked. Gradle 9.3.1 is pinned with AGP 8.13.2. Java 25 execution was not available in the preparation environment.
 - Device report for v1.2: floating controls work except the disabled Stop button; the first enable after shutdown can leave settings off, while another attempt recovers it.
-- Persistence: nine host checks passed previously; device USB/reboot acceptance remains unreported.
+- Persistence: nine host checks pass; the owner confirmed the original boot script works on 20 October 2026. Other firmware requires separate acceptance.
 - v1.3: production Java compiled against SDK 35; 14 source-routing, 13 adapter-state and 12 launcher/media scenarios passed. Direct adapter control, transition handling, retry and Stop need device confirmation.
 
 No APK is assembled as part of source-only checks.

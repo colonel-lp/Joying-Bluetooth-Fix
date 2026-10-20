@@ -2,6 +2,8 @@
 
 Enable `sys.fyt.systemobd=1` at boot through `/oem/app/config.txt`, with a verified original backup and guarded restore. Intended for the Joying SC9853i Android 8.1 setup described in the [project README](../../readme.md).
 
+For other firmware, use the separate [generic Check / Install / Restore package](generic/readme.md). It has no model or Android-version restriction; it still requires the FYT config layout and a compatible offline updater.
+
 ## USB layouts
 
 | Copy contents from | Action | USB log |
