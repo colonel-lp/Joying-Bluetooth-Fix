@@ -13,16 +13,16 @@ Enable Wi-Fi ADB using the unit's tools, confirm its IP and connect from platfor
 ./adb devices -l
 ```
 
-The device must report `device`, not `unauthorized`. Port **5037** is the Mac's local ADB server; **5555** is the Joying's Wi-Fi ADB endpoint. Closing Android Studio stopped it conflicting with a foreground debugging server during this investigation.
+The device must report `device`, not `unauthorized`.
 
-If routing is uncertain on macOS:
+If routing is uncertain:
 
 ```sh
 ping -c 4 HEAD_UNIT_IP
 nc -vz -G 3 HEAD_UNIT_IP 5555
 ```
 
-A successful TCP connection followed by `unauthorized` is an authentication problem. This unit did not display an RSA approval prompt. Authorization was resolved separately by a guarded offline USB procedure adding the Mac's **public** `~/.android/adbkey.pub` to `/data/misc/adb/adb_keys`, preserving existing keys and applying owner/group `1000.2000`, mode `0640` and SELinux labelling. That personalized installer/key is not included here. Do not expose the private `adbkey`, replace the existing trusted-key list or mistake authorization for root: the resulting shell remained UID 2000.
+A successful TCP connection followed by `unauthorized` is an authentication problem. This unit did not display an RSA approval prompt. Authorization was resolved separately by a guarded offline USB procedure adding the **public** `~/.android/adbkey.pub` to `/data/misc/adb/adb_keys`, preserving existing keys and applying owner/group `1000.2000`, mode `0640` and SELinux labelling. Do not expose your private `adbkey`, replace the existing trusted-key list or mistake authorization for root: the resulting shell remained UID 2000.
 
 ## 2. Enable native receiving
 
@@ -41,16 +41,15 @@ On the tested unit, `bluetooth_type=1` was set in `/oem/app/config.txt`; its fac
 ./adb shell 'setprop sys.fyt.systemobd 1 && setprop persist.lsec.enable_a2dp 0 && am force-stop com.android.bluetooth && am start -a android.settings.BLUETOOTH_SETTINGS'
 ```
 
-Enable Bluetooth in **Android's** settings. The adapter reached ON with a real address, initialized its Marlin2 radio, discovered devices and paired with the Mac. The default native name was `lsec-android`; a renamed device remains the same receiver. Historical “unexpected crash” entries at the force-stop times do not by themselves establish spontaneous stack crashes.
+Enable Bluetooth in **Android's** settings. The adapter reached ON with a real address, initialized its Marlin2 radio, discovered devices and paired. The default native name is `lsec-android`; a renamed device remains the same receiver. Historical “unexpected crash” entries at the force-stop times do not by themselves establish spontaneous stack crashes.
 
 `sys.fyt.systemobd` is volatile; `persist.lsec.enable_a2dp` is persistent. The override is cached by the Bluetooth process, which is why its restart is necessary. For boot configuration and exact restore, use [the separate USB instructions](../scripts/persistence/readme.md).
 
 ## 3. Make received music audible
 
-1. Select the Joying as the Mac/phone's media output and play audio.
+1. Select the Joying as the media output and play audio.
 2. Open **Joying's original Bluetooth Music screen** to select the audio source.
-3. If connected but silent, pause playback, select the Mac speakers, reselect the Joying output, and resume playback with Bluetooth Music open.
-
+   
 Both source selection and this output re-selection were confirmed to restore audible playback. Pairing alone does not establish an active media stream.
 
 The receiver uses Android **STREAM_ALARM (4)**. While the ordinary Android source was selected, Joying's service repeatedly set that stream to 0. Bluetooth Music selected the proper source and set it to 7/7. A direct ADB volume change could be overwritten, so it was not a lasting fix:
@@ -77,7 +76,7 @@ These findings apply to this firmware. They explain the original external-path `
 
 ## 5. Diagnose a silent connection
 
-With the sender playing and Bluetooth Music open, capture to the Mac Desktop:
+With the sender playing and Bluetooth Music open, capture to the Desktop:
 
 ```sh
 {
